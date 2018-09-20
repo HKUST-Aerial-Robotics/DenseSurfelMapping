@@ -7,17 +7,22 @@ Given a sequence of depth images, intensity images, and camera poses, the propos
 
 An example to show the usage of the surfel mapping is shown below.
 
+<p align="center">
 <img src="fig/example.png" alt="mapping example" width = "623" height = "300">
+</p>
 
 Left is the overview of the environment, middle is the reconstructed results (visualized as point clouds in rviz of ROS) of our method, and right is the result using [OpenChisel](https://github.com/personalrobotics/OpenChisel). We use VINS-Mono to track the camera motion with loop closure, and [MVDepthNet](https://github.com/HKUST-Aerial-Robotics/MVDepthNet) to estimate the depth maps. Black line is the path of the camera. In the reconstruction, loop clusure is enabled to correct the detected drift. OpenChisel is a great project to reconstruct the environt using the truncated signed distance function (TSDF). However, as shown in the example, it is not suitable to be used with SLAM systems that have loop closure abilities.
 
 The system can also be applied to the KITTI datasets in real-time with only CPU computation.
 
+<p align="center">
 <img src="fig/example2.png" alt="mapping example" width = "465" height = "300">
+</p>
 
 The top row is the reconstruction using stereo cameras and the bottom row is the reconstruction using **only the left camera**. Details can be found in the paper.
 
 A video can be used to illustrate the performance of the system and how we apply it into an autonomous navigation:
-
+<p align="center">
 <a href="https://youtu.be/sjxMjsl-fD4" target="_blank"><img src="http://img.youtube.com/vi/sjxMjsl-fD4/0.jpg" 
 alt="video" width="480" height="360" border="10" /></a>
+</p>
