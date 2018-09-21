@@ -23,6 +23,6 @@ The top row is the reconstruction using stereo cameras and the bottom row is the
 
 A video can be used to illustrate the performance of the system and how we apply it into an autonomous navigation:
 <p align="center">
-<a href="https://youtu.be/2gZNpFE_yI4" target="_blank"><img src="https://youtu.be/2gZNpFE_yI4/0.jpg" 
-alt="video" width="480" height="360" border="10" /></a>
+<a href="https://youtu.be/2gZNpFE_yI4" target="_blank"><img src="fig/cover.jpg" 
+alt="video" width="432" height="316" border="10" /></a>
 </p>
