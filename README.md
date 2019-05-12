@@ -52,7 +52,7 @@ If you have installed all three components from the software
 
 1. change line 23 in ./kitti_publisher/scripts/publisher.py according to your downloaded dataset path.
 
-2. change the path ```/home/wang/software``` and ```/home/wang/software/ORB_SLAM2/Examples/Stereo/KITTI00-02.yaml``` according to your environment in /ORB_SLAM2/orb_kitti_launch.sh.
+2. change the path ```/home/wang/software/ORB_SLAM2/Vocabulary/ORBvoc.txt``` and ```/home/wang/software/ORB_SLAM2/Examples/Stereo/KITTI00-02.yaml``` according to your environment in /ORB_SLAM2/orb_kitti_launch.sh.
 
 3. open four terminal windows: run the ORB_SLAM2 by
 
