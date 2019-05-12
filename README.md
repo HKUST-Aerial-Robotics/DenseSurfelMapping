@@ -1,7 +1,7 @@
 # DenseSurfelMapping
 ## A depth map fusion method
 
-This is a depth map fusion method following the ICRA 2019 submission **Real-time Scalable Dense Surfel Mapping**, Kaixuan Wang, Fei Gao, and Shaojie Shen. The code will be released when the paper is accepted.
+This is a depth map fusion method following the ICRA 2019 submission **Real-time Scalable Dense Surfel Mapping**, Kaixuan Wang, Fei Gao, and Shaojie Shen.
 
 Given a sequence of depth images, intensity images, and camera poses, the proposed methods can fuse them into a globally consistent model using surfel representation. The fusion method supports both [ORB-SLAM2](https://github.com/raulmur/ORB_SLAM2) and [VINS-Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono) (a little modification is required) so that you can use it in RGB-D, stereo, or visual-inertial cases according to your setups. We develop the method based on the motivation that the fusion method: (1) can support loop closure (so that it can be consistent with other state-of-the-art SLAM methods),  (2) do not require much CPU/memory resources to reconstruct a fine model in real-time, (3) can be scaled to large environments. 
 
@@ -45,7 +45,7 @@ kitti publisher is a simple python warper to publish the Kitti dataset along wit
 
 # Data
 
-Here, we provide sequence 00 from the kitti dataset so that you can easily run the code. You can download the dataset from [this_link]()
+Here, we provide sequence 00 from the kitti dataset so that you can easily run the code. You can download the dataset from [this_link](https://www.dropbox.com/s/qpn40yt8bjvkapd/kitti_sequence_00.tar.gz?dl=0).
 
 # Run the code
 If you have installed all three components from the software
@@ -78,3 +78,8 @@ rosrun kitti_publisher publisher.py
 rviz
 ```
 (you can load the rviz_config.rviz in the project to load published messages).
+
+4. the kitti publisher will initialize a window and you can start the publish by press any key on that window. Press ***Esc*** will quit the publisher.
+
+# Save the result
+The code also support saving the reconstructed model by changing line 22 in /surfel_fusion/launch/kitti_orb.launch. Just press crtl+c on surfel fusion will cause the software to save meshes into the defined the path and quit the process.
