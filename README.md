@@ -50,9 +50,9 @@ Here, we provide sequence 00 from the kitti dataset so that you can easily run t
 # Run the code
 If you have installed all three components from the software
 
-1. change line 23 in ./kitti_publisher/scripts/publisher.py according to your downloaded dataset path.
+1. change line 23 in ```./kitti_publisher/scripts/publisher.py``` according to your downloaded dataset path.
 
-2. change the path ```/home/wang/software/ORB_SLAM2/Vocabulary/ORBvoc.txt``` and ```/home/wang/software/ORB_SLAM2/Examples/Stereo/KITTI00-02.yaml``` according to your environment in /ORB_SLAM2/orb_kitti_launch.sh.
+2. change the path ```/home/wang/software/ORB_SLAM2/Vocabulary/ORBvoc.txt``` and ```/home/wang/software/ORB_SLAM2/Examples/Stereo/KITTI00-02.yaml``` in ```/ORB_SLAM2/orb_kitti_launch.sh``` according to your environment.
 
 3. open four terminal windows: run the ORB_SLAM2 by
 
@@ -79,7 +79,7 @@ rviz
 ```
 (you can load the rviz_config.rviz in the project to load published messages).
 
-4. the kitti publisher will initialize a window and you can start the publish by press any key on that window. Press ***Esc*** will quit the publisher.
+4. the kitti publisher will initialize a window and you can start the publisher by press any key on that window. Press ***Esc*** will quit the publisher.
 
 # Save the result
-The code also support saving the reconstructed model by changing line 22 in /surfel_fusion/launch/kitti_orb.launch. Just press crtl+c on surfel fusion will cause the software to save meshes into the defined the path and quit the process.
+The code also supports saving the reconstructed model by changing line 22 in ```/surfel_fusion/launch/kitti_orb.launch```. Just press crtl+c on surfel fusion will cause the software to save meshes into the defined the path and quit the process.
