@@ -1,0 +1,1 @@
+rosrun ORB_SLAM2 Stereo /home/wang/software/ORB_SLAM2/Vocabulary/ORBvoc.txt /home/wang/bag/surfel_fusion/visensor/orb_slam2.yaml true /camera/left/image_raw:=/cam1/image_raw /camera/right/image_raw:=/cam0/image_raw
