@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   geometry_msgs
-  depthnet_msgs
 )
 # add_service_files(FILES psmServer.srv)
 # generate_messages(
