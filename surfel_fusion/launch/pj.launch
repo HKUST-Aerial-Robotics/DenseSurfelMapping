@@ -1,0 +1,67 @@
+<launch>
+  <node pkg="surfel_fusion" type="surfel_fusion" name="surfel_fusion" clear_params="true" output="screen">
+
+    <!-- camera parameter -->
+    <param name="cam_width"  value="640" />
+    <param name="cam_height" value="480" />
+
+    <!--input image info-->
+    <param name="cam_fx" value="3.8445808939187248e+02" />
+    <param name="cam_fy" value="3.8398275569654390e+02" />
+    <param name="cam_cx" value="3.2247735741936430e+02" />
+    <param name="cam_cy" value="2.3707634648111778e+02" />
+
+    <param name="ric00" value=" 1.8164816281258656e-03" />
+    <param name="ric01" value=" -6.3177130219012612e-03" />
+    <param name="ric02" value=" 9.9997839321490711e-01" />
+
+    <param name="ric10" value="-9.9993170493633965e-01" />
+    <param name="ric11" value="-1.1556213348783206e-02" />
+    <param name="ric12" value=" 1.7433864008152278e-03" />
+
+    <param name="ric20" value=" 1.1544949441198271e-02" />
+    <param name="ric21" value="-9.9991326645625134e-01" />
+    <param name="ric22" value="-6.3382732025270005e-03" />
+
+    <param name="tic0" value="4.5276582907576739e-02" />
+    <param name="tic1" value="1.3182794321427079e-02" />
+    <param name="tic2" value="1.3591235430469647e-03" />
+
+<!-- extrinsicRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ -5.1436691925590416e-03,  5.4767043333792342e-02,  9.9848591058247393e-01, 
+           -9.9998160041741557e-01, -3.4927410551821580e-03, -4.9597970266611613e-03,
+            3.2158193142264313e-03, -9.9849305041367009e-01,  5.4784001147618611e-02 ]
+extrinsicTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 9.7354651219837458e-04, 6.8194286653203303e-04, 8.1958132689258875e-02 ] -->
+
+
+    <!-- fusion parameter, all in meter -->
+    <param name="fuse_far_distence"  value="3.0" />
+    <param name="fuse_near_distence" value="0.1" />
+
+    <!-- for deform the map -->
+    <param name="drift_free_poses" value="300" />
+
+    <!-- for data save -->
+    <remap from="~image" to="/camera/infra1/image_rect_raw" />
+    <remap from="~depth" to="/camera/depth/image_rect_raw" />
+    <!-- remap from="~pose" to="/vins_estimator/camera_pose" / -->
+   <remap from="~loop_path" to="/loop_fusion/pose_graph_path" />
+   <!-- <remap from="~loop_path" to="/pose_graph/pose_graph_path" /> -->
+   <remap from="~extrinsic_pose" to="/vins_estimator/extrinsic" />
+
+<!--     <param name="save_name" value="/home/uav/catkin_ws/surfel_map_model" /> -->
+   <!-- <remap from="~loop_path" to="/vins_estimator/path" /> -->
+
+  </node>
+
+  <node pkg="map_server" type="map_server" name="map_server">
+      <param name="save_name" value="/home/uav/catkin_ws/surfel_map_model" />
+  </node>
+</launch>

@@ -6,19 +6,20 @@
 
 #define MIN_SURFEL_SIZE 0.02
 #define ITERATION_NUM 3
+#define GN_ITERATION_NUM 0
 #define THREAD_NUM 10
 #define SP_SIZE 8
 #define MAX_ANGLE_COS 0.1
 // for drive
-#define HUBER_RANGE 0.4
-#define BASELINE 0.5
-#define DISPARITY_ERROR 4.0
-#define MIN_TOLERATE_DIFF 0.1
+// #define HUBER_RANGE 0.5
+// #define BASELINE 0.5
+// #define DISPARITY_ERROR 2.0
+// #define MIN_TOLERATE_DIFF 0.1
 // for RGBD
-// #define HUBER_RANGE 0.05
-// #define BASELINE 0.08
-// #define DISPARITY_ERROR 1.0
-// #define MIN_TOLERATE_DIFF 0.05
+#define HUBER_RANGE 0.075
+#define BASELINE 0.1
+#define DISPARITY_ERROR 1.0
+#define MIN_TOLERATE_DIFF 0.1
 
 class FusionFunctions
 {
