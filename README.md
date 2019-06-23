@@ -2,7 +2,7 @@
 
 **WARNING!**
 
-**This is a developing project that supports VINS_MONO, we currently do not provide any tech-support until we finish the code cleaning and testing. Please try master branch if you want supports.**
+**We have cleaned the code such that it can run without GPU acceleration. The code have not been fully tested after the refactoring. If you have any questions or suggestions, please let us know in the issue.**
 
 ## A depth map fusion method
 
@@ -31,3 +31,9 @@ A video can be used to illustrate the performance of the system and how we apply
 <a href="https://youtu.be/2gZNpFE_yI4" target="_blank"><img src="fig/cover.jpg" 
 alt="video" width="432" height="316" border="10" /></a>
 </p>
+
+## Running with VINS-Mono
+We have use the surfel fusion with VINS-Mono in lots of UAV projects. For depth estimation, we recommend high quality depth methods/devices, for example [MVDepthNet](https://github.com/HKUST-Aerial-Robotics/MVDepthNet) or intel-realsense. Please refer to ```/launch/fuse_depthnet.launch``` for detailed parameters. The system takes paired image and depth map as input. Since VINS-Mono publishes imu poses, we also need to receive ```/vins_estimator/extrinsic``` for converting imu poses into camera poses.
+
+## Ackonwledgement
+We thank Gao Fei, Pan Jie, and Wang Luqi, for their contribution to the code and suggestions.
