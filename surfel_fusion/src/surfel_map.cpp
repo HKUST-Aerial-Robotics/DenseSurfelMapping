@@ -88,7 +88,7 @@ inactive_pointcloud(new PointCloud)
     loop_marker_publish = nh.advertise<visualization_msgs::Marker>("loop_marker", 10);
 
     // render_tool initialize
-    render_tool.initialize_rendertool(cam_width, cam_height, cam_fx, cam_fy, cam_cx, cam_cy);
+    // render_tool.initialize_rendertool(cam_width, cam_height, cam_fx, cam_fy, cam_cx, cam_cy);
 
     //
     is_first_path = true;
@@ -1593,54 +1593,54 @@ void SurfelMap::save_mesh(string save_path_name)
 }
 
 
-void SurfelMap::render_depth(geometry_msgs::Pose &pose)
-{
-    std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
-    std::chrono::duration<double> total_time;
-    start_time = std::chrono::system_clock::now();
+// void SurfelMap::render_depth(geometry_msgs::Pose &pose)
+// {
+//     std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
+//     std::chrono::duration<double> total_time;
+//     start_time = std::chrono::system_clock::now();
 
-    vector<float> positions;
-    vector<float> normrs;
-    for(int surfel_it = 0; surfel_it < local_surfels.size(); surfel_it++)
-    {
-        if(local_surfels[surfel_it].update_times < 5)
-            continue;
-        positions.push_back(local_surfels[surfel_it].px);
-        positions.push_back(local_surfels[surfel_it].py);
-        positions.push_back(local_surfels[surfel_it].pz);
-        normrs.push_back(local_surfels[surfel_it].nx);
-        normrs.push_back(local_surfels[surfel_it].ny);
-        normrs.push_back(local_surfels[surfel_it].nz);
-        normrs.push_back(local_surfels[surfel_it].size);
-        // if(local_surfels[surfel_it].size != local_surfels[surfel_it].size)
-        //     std::cout << "error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-        // normrs.push_back(0.01);
-    }
+//     vector<float> positions;
+//     vector<float> normrs;
+//     for(int surfel_it = 0; surfel_it < local_surfels.size(); surfel_it++)
+//     {
+//         if(local_surfels[surfel_it].update_times < 5)
+//             continue;
+//         positions.push_back(local_surfels[surfel_it].px);
+//         positions.push_back(local_surfels[surfel_it].py);
+//         positions.push_back(local_surfels[surfel_it].pz);
+//         normrs.push_back(local_surfels[surfel_it].nx);
+//         normrs.push_back(local_surfels[surfel_it].ny);
+//         normrs.push_back(local_surfels[surfel_it].nz);
+//         normrs.push_back(local_surfels[surfel_it].size);
+//         // if(local_surfels[surfel_it].size != local_surfels[surfel_it].size)
+//         //     std::cout << "error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+//         // normrs.push_back(0.01);
+//     }
 
-    end_time = std::chrono::system_clock::now();
-    total_time = end_time - start_time;
-    //printf("render_depth: construct information vector cost %f ms.\n", total_time.count()*1000.0);
-    start_time = std::chrono::system_clock::now();
+//     end_time = std::chrono::system_clock::now();
+//     total_time = end_time - start_time;
+//     //printf("render_depth: construct information vector cost %f ms.\n", total_time.count()*1000.0);
+//     start_time = std::chrono::system_clock::now();
 
-    Eigen::Matrix4d eigen_pose;
-    pose_ros2eigen(pose, eigen_pose);
-    Eigen::Matrix4f eigen_pose_f = eigen_pose.cast<float>();
-    vector<float> depth_results;
-    render_tool.render_surfels(positions, normrs, depth_results, eigen_pose_f);
+//     Eigen::Matrix4d eigen_pose;
+//     pose_ros2eigen(pose, eigen_pose);
+//     Eigen::Matrix4f eigen_pose_f = eigen_pose.cast<float>();
+//     vector<float> depth_results;
+//     render_tool.render_surfels(positions, normrs, depth_results, eigen_pose_f);
 
-    end_time = std::chrono::system_clock::now();
-    total_time = end_time - start_time;
-    //printf("render_depth: openGL render cost %f ms.\n", total_time.count()*1000.0);
-    start_time = std::chrono::system_clock::now();
+//     end_time = std::chrono::system_clock::now();
+//     total_time = end_time - start_time;
+//     //printf("render_depth: openGL render cost %f ms.\n", total_time.count()*1000.0);
+//     start_time = std::chrono::system_clock::now();
 
-    cv::Mat depth_mat = cv::Mat(cam_height, cam_width, CV_32FC1);
-    memcpy(depth_mat.data, depth_results.data(), depth_results.size()*sizeof(float));
+//     cv::Mat depth_mat = cv::Mat(cam_height, cam_width, CV_32FC1);
+//     memcpy(depth_mat.data, depth_results.data(), depth_results.size()*sizeof(float));
 
-    cv::Mat depth_uchar;
-    depth_mat.convertTo(depth_uchar, CV_8UC1, 1.0/4.0*255.0, 0);
-    cv::imshow("rendered depth", depth_uchar);
-    cv::waitKey(10);
-}
+//     cv::Mat depth_uchar;
+//     depth_mat.convertTo(depth_uchar, CV_8UC1, 1.0/4.0*255.0, 0);
+//     cv::imshow("rendered depth", depth_uchar);
+//     cv::waitKey(10);
+// }
 
 void SurfelMap::publish_neighbor_pointcloud(ros::Time pub_stamp, int reference_index)
 {

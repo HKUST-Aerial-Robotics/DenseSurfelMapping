@@ -29,7 +29,7 @@
 #include <elements.h>
 #include <fusion_functions.h>
 // #include <parameters.h>
-#include <opengl_render/render_tool.h>
+// #include <opengl_render/render_tool.h>
 
 typedef pcl::PointXYZI PointType;
 typedef pcl::PointCloud<PointType> PointCloud;
@@ -106,7 +106,7 @@ public:
     // std::list<std::pair<ros::Time, geometry_msgs::Pose> > pose_buffer;
 
     // render tool
-    RenderTool render_tool;
+    // RenderTool render_tool;
 
     // camera param
     int cam_width;

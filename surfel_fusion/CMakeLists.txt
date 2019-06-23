@@ -23,12 +23,12 @@ find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 find_package(OpenCV REQUIRED)
-find_package(OpenGL REQUIRED)
-find_package(glfw3 REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(glm REQUIRED)
+# find_package(OpenGL REQUIRED)
+# find_package(glfw3 REQUIRED)
+# find_package(GLEW REQUIRED)
+# find_package(glm REQUIRED)
 #find_package(CUDA REQUIRED)
-find_package(OpenMP REQUIRED )
+# find_package(OpenMP REQUIRED)
 #find_package(PCL REQUIRED)
 
 # set(CUDA_NVCC_FLAGS
@@ -42,10 +42,10 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
   ${Boost_INCLUDE_DIRS}
-  ${GLEW_INCLUDE_DIR}
-  ${GLM_INCLUDE_DIR}
-  ${OPENGL_INCLUDE_DIR}
-  ${glfw3_DIR}
+  # ${GLEW_INCLUDE_DIR}
+  # ${GLM_INCLUDE_DIR}
+  # ${OPENGL_INCLUDE_DIR}
+  # ${glfw3_DIR}
 #  ${PCL_INCLUDE_DIRS}
 )
 
@@ -54,14 +54,15 @@ add_executable(surfel_fusion
     src/surfel_map.cpp
     # src/cuda_functions.cu
     src/fusion_functions.cpp 
-    src/opengl_render/render_tool.cpp
-    src/opengl_render/shader.cpp
+    # src/opengl_render/render_tool.cpp
+    # src/opengl_render/shader.cpp
     )
 target_link_libraries(surfel_fusion 
   ${catkin_LIBRARIES} 
   ${OpenCV_LIBS} 
   ${Boost_LIBRARIES} 
-  ${OPENGL_LIBRARY}
-	${GLEW_LIBRARY}
-  ${GLFW3_LIBRARY}
-  -fopenmp)
+  # ${OPENGL_LIBRARY}
+	# ${GLEW_LIBRARY}
+  # ${GLFW3_LIBRARY}
+  # -fopenmp
+  )
