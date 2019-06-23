@@ -11,34 +11,6 @@
     <param name="cam_fy" value="279.78665161" />
     <param name="cam_cy" value="109.63733673" />
 
-    <param name="ric00" value=" -5.1436691925590416e-03" />
-    <param name="ric01" value=" 5.4767043333792342e-02" />
-    <param name="ric02" value=" 9.9848591058247393e-01" />
-    <param name="ric10" value="-9.9998160041741557e-01" />
-    <param name="ric11" value=" -3.4927410551821580e-03" />
-    <param name="ric12" value=" -4.9597970266611613e-03" />
-    <param name="ric20" value="3.2158193142264313e-03" />
-    <param name="ric21" value="-9.9849305041367009e-01" />
-    <param name="ric22" value=" 5.4784001147618611e-02" />
-
-    <param name="tic0" value="9.7354651219837458e-04" />
-    <param name="tic1" value="6.8194286653203303e-04" />
-    <param name="tic2" value="8.1958132689258875e-02" />
-
-<!-- extrinsicRotation: !!opencv-matrix
-   rows: 3
-   cols: 3
-   dt: d
-   data: [ -5.1436691925590416e-03,  5.4767043333792342e-02,  9.9848591058247393e-01, 
-           -9.9998160041741557e-01, -3.4927410551821580e-03, -4.9597970266611613e-03,
-            3.2158193142264313e-03, -9.9849305041367009e-01,  5.4784001147618611e-02 ]
-extrinsicTranslation: !!opencv-matrix
-   rows: 3
-   cols: 1
-   dt: d
-   data: [ 9.7354651219837458e-04, 6.8194286653203303e-04, 8.1958132689258875e-02 ] -->
-
-
     <!-- fusion parameter, all in meter -->
     <param name="fuse_far_distence"  value="3.0" />
     <param name="fuse_near_distence" value="0.5" />
@@ -49,13 +21,9 @@ extrinsicTranslation: !!opencv-matrix
     <!-- for data save -->
     <remap from="~image" to="/depthnet_node/reference_image" />
     <remap from="~depth" to="/depthnet_node/depth" />
-    <!-- remap from="~pose" to="/vins_estimator/camera_pose" / -->
    <remap from="~loop_path" to="/pose_graph/pose_graph_path" />
    <remap from="~extrinsic_pose" to="/vins_estimator/extrinsic" />
-   <!-- <remap from="~loop_path" to="/vins_estimator/path" /> -->
 
   </node>
 
-  <node pkg="map_server" type="map_server" name="map_server">
-  </node>
 </launch>

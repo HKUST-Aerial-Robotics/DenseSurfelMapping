@@ -112,8 +112,6 @@ public:
     int cam_width;
     int cam_height;
     float cam_fx, cam_fy, cam_cx, cam_cy;
-    float Ric00, Ric01, Ric02, Ric10, Ric11, Ric12, Ric20, Ric21, Ric22;
-    float Tic0, Tic1, Tic2;
     Eigen::Matrix4d extrinsic_matrix;
     bool extrinsic_matrix_initialized;
 

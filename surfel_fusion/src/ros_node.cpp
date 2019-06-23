@@ -26,13 +26,6 @@ int main(int argc, char **argv)
   ros::Subscriber sub_save_map = nh.subscribe("save_map", 1, &SurfelMap::save_map, &surfel_map);
   ros::Subscriber sub_path = nh.subscribe("loop_path", 1, &SurfelMap::path_input, &surfel_map);
   ros::Subscriber sub_extrinsic_pose = nh.subscribe("extrinsic_pose", 1, &SurfelMap::extrinsic_input, &surfel_map);
-
-  // message_filters::Subscriber<sensor_msgs::PointCloud> sub_loop_stamps(nh, "loop_stamps", 1000);
-  // message_filters::Subscriber<nav_msgs::Path> sub_loop_path(nh, "loop_path", 1000);
-  // message_filters::Subscriber<nav_msgs::Odometry> sub_this_pose(nh, "this_pose", 1000);
-  // message_filters::Synchronizer<exact_policy> sync(exact_policy(1000), sub_loop_stamps, sub_loop_path, sub_this_pose);
-  // sync.registerCallback(boost::bind(&SurfelMap::orb_results_input, &surfel_map, _1, _2, _3));
-  // ros::spin();
   
 //  cout<<"save_name: = "<<save_name<<endl;
   ros::Rate r(100);
