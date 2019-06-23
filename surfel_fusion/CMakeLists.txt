@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(surfel_fusion)
 
 #set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/uav/catkin_ws/src/surfel_fusion/cmake")
+# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/home/uav/catkin_ws/src/surfel_fusion/cmake")
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++11 -DEIGEN_DONT_PARALLELIZE -pthread ${OpenMP_CXX_FLAGS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
