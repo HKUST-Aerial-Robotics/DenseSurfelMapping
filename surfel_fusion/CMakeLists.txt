@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
     nav_msgs
     message_filters
     pcl_ros
+    cerebro
     )
 catkin_package(
 )

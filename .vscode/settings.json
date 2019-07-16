@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "*.cuh": "cpp",
+        "*.cu": "cuda",
+        "*.frag": "cpp",
+        "*.vert": "cpp",
+        "*.geom": "cpp",
+        "*.fragmentshader": "cpp",
+        "chrono": "cpp",
+        "ostream": "cpp"
+    }
+}

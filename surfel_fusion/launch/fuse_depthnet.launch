@@ -2,27 +2,28 @@
   <node pkg="surfel_fusion" type="surfel_fusion" name="surfel_fusion" clear_params="true" output="screen">
 
     <!-- camera parameter -->
-    <param name="cam_width" value="320" />
-    <param name="cam_height" value="256" />
+    <param name="cam_width" value="640" />
+    <param name="cam_height" value="480" />
 
     <!--input image info-->
-    <param name="cam_fx" value="223.19148254" />
-    <param name="cam_cx" value="159.8085022" />
-    <param name="cam_fy" value="279.78665161" />
-    <param name="cam_cy" value="109.63733673" />
+    <param name="cam_fx" value="385.754486" />
+    <param name="cam_cx" value="323.120483" />
+    <param name="cam_fy" value="385.754486" />
+    <param name="cam_cy" value="236.7432098" />
 
     <!-- fusion parameter, all in meter -->
     <param name="fuse_far_distence"  value="3.0" />
     <param name="fuse_near_distence" value="0.5" />
 
     <!-- for deform the map -->
-    <param name="drift_free_poses" value="300" />
+    <param name="drift_free_poses" value="100" />
 
     <!-- for data save -->
-    <remap from="~image" to="/depthnet_node/reference_image" />
-    <remap from="~depth" to="/depthnet_node/depth" />
-   <remap from="~loop_path" to="/pose_graph/pose_graph_path" />
-   <remap from="~extrinsic_pose" to="/vins_estimator/extrinsic" />
+    <remap from="~image" to="/camera/infra1/image_rect_raw" />
+    <remap from="~depth" to="/camera/depth/image_rect_raw" />
+    <remap from="~loop_path" to="/keyframe_pose_graph_slam_node/adhoc/xpath_detailed" />
+    <remap from="~extrinsic_pose" to="/vins_estimator/extrinsic" />
+    <remap from="~loop_info" to="/cerebro/loopedge" />
 
   </node>
 

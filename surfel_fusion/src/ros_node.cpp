@@ -4,7 +4,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
-
+#include <cerebro/LoopEdge.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/exact_time.h>
@@ -25,6 +25,7 @@ int main(int argc, char **argv)
   ros::Subscriber sub_depth = nh.subscribe("depth", 1, &SurfelMap::depth_input, &surfel_map);
   ros::Subscriber sub_save_map = nh.subscribe("save_map", 1, &SurfelMap::save_map, &surfel_map);
   ros::Subscriber sub_path = nh.subscribe("loop_path", 1, &SurfelMap::path_input, &surfel_map);
+  ros::Subscriber sub_loop_info = nh.subscribe("loop_info", 1, &SurfelMap::loop_info_input, &surfel_map);
   ros::Subscriber sub_extrinsic_pose = nh.subscribe("extrinsic_pose", 1, &SurfelMap::extrinsic_input, &surfel_map);
   
 //  cout<<"save_name: = "<<save_name<<endl;

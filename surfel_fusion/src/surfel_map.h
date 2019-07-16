@@ -25,6 +25,7 @@
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/Marker.h>
+#include <cerebro/LoopEdge.h>
 
 #include <elements.h>
 #include <fusion_functions.h>
@@ -44,6 +45,8 @@ struct PoseElement{
     vector<int> linked_pose_index;
     int points_begin_index;
     int points_pose_index;
+    int world_id;
+    int set_id;
     ros::Time cam_stamp;
     PoseElement() : points_begin_index(-1), points_pose_index(-1) {}
 };
@@ -57,6 +60,7 @@ public:
     void image_input(const sensor_msgs::ImageConstPtr &image_input);
     void depth_input(const sensor_msgs::ImageConstPtr &image_input);
     void path_input(const nav_msgs::PathConstPtr &loop_path_input);
+    void loop_info_input(const cerebro::LoopEdgeConstPtr &loop_info_input);
     void extrinsic_input(const nav_msgs::OdometryConstPtr &ex_input);
     void orb_results_input(
         const sensor_msgs::PointCloudConstPtr &loop_stamp_input,
@@ -87,9 +91,25 @@ public:
 
     void pose_ros2eigen(geometry_msgs::Pose &pose, Eigen::Matrix4d &T);
     void pose_eigen2ros(Eigen::Matrix4d &T, geometry_msgs::Pose &pose);
+    void get_world_set_id(const string &str, int &world_id, int &set_id)
+    {
+        char separator = ':';
+        string world_id_str;
+        string set_id_str;
+        std::string::const_iterator start = str.begin();
+        std::string::const_iterator end = str.end();
+        std::string::const_iterator sep0 = std::find(start, end, separator);
+        std::string::const_iterator sep1 = std::find(sep0+1, end, separator);
+        std::string::const_iterator sep2 = std::find(sep1+1, end, separator);
+        world_id_str = std::string(sep0+1, sep1);
+        set_id_str = std::string(sep2+1, end);
+        world_id = std::stoi(world_id_str);
+        set_id = std::stoi(set_id_str);
+    }
 
     void render_depth(geometry_msgs::Pose &pose);
     void publish_neighbor_pointcloud(ros::Time pub_stamp, int reference_index);
+    void publish_this_set_pointcloud(ros::Time pub_stamp, int reference_index);
     void publish_raw_pointcloud(cv::Mat &depth, cv::Mat &reference, geometry_msgs::Pose &pose);
     void publish_pose_graph(ros::Time pub_stamp, int reference_index);
     void calculate_memory_usage();
@@ -101,6 +121,7 @@ public:
     std::deque<std::pair<ros::Time, cv::Mat>> image_buffer;
     std::deque<std::pair<ros::Time, cv::Mat>> depth_buffer;
     std::deque<std::pair<ros::Time, int>> pose_reference_buffer;
+    std::vector<std::pair<double, double>> linked_pose_stamps;
 
     // geometry_msgs::PoseStamped await_pose;
     // std::list<std::pair<ros::Time, geometry_msgs::Pose> > pose_buffer;
@@ -150,6 +171,7 @@ public:
     // ros related
     ros::NodeHandle &nh;
     ros::Publisher pointcloud_publish;
+    ros::Publisher set_pointcloud_publish;
     ros::Publisher raw_pointcloud_publish;
     ros::Publisher loop_path_publish;
     ros::Publisher driftfree_path_publish;
