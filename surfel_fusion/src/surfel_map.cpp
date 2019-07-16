@@ -435,6 +435,10 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
                 this_pose_element.cam_pose  = camera_path.poses[i].pose;
                 this_pose_element.loop_pose = camera_path.poses[i].pose;
                 this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
+                int this_world_id, this_set_id;
+                get_world_set_id(camera_path.poses[i].header.frame_id, this_world_id, this_set_id);
+                this_pose_element.world_id = this_world_id;
+                this_pose_element.set_id = this_set_id;
 
                 poses_database.push_back(this_pose_element);
                 local_surfels_indexs.insert(this_pose_index);
