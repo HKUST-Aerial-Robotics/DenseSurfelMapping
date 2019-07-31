@@ -1,6 +1,8 @@
 # DenseSurfelMapping
 **News: You can find the paper [here](https://www.dropbox.com/s/h9bais2wnw1g9f0/root.pdf?dl=0). If the project helps you in your paper, PLEASE cite it.**
+
 **News: we have updated VINS-Supported branch. The code is not fully checked after refactoring. If you encounted any problems, please let us know.**
+
 ## A depth map fusion method
 
 This is a depth map fusion method following the ICRA 2019 submission **Real-time Scalable Dense Surfel Mapping**, Kaixuan Wang, Fei Gao, and Shaojie Shen.
