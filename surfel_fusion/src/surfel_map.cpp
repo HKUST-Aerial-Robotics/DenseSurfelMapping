@@ -68,6 +68,7 @@ inactive_pointcloud(new PointCloud)
     //
     is_first_path = true;
     extrinsic_matrix_initialized = false;
+    surfel_state = false;
 }
 
 SurfelMap::~SurfelMap()
@@ -76,42 +77,71 @@ SurfelMap::~SurfelMap()
     //     cudaFree(fuse_param_gpuptr);
 }
 
+void SurfelMap::surfel_cmd_callback(const std_msgs::Int16ConstPtr &cmd)
+{
+    switch(cmd->data){
+        case 1: // SURFEL INIT
+            ROS_WARN("Surfel Start!");
+            surfel_state = true;
+            break;
+        case 2: // SURFEL SAVE MAP AND RESET
+            ROS_WARN("Surfel STOP!");
+            save_mesh(map_dir + ".ply");
+            save_cloud(map_dir + ".pcd");
+            surfel_state = false;
+            break;
+    }
+}
+
+void SurfelMap::set_map_dir(string str)
+{
+    map_dir = str;
+}
+
 void SurfelMap::save_map(const std_msgs::StringConstPtr &save_map_input)
 {
     string save_name = save_map_input->data;
     printf("save mesh modelt to %s.\n", save_name.c_str());
     save_mesh(save_name);
+    save_cloud(save_name);
     printf("save done!\n");
 }
 
 void SurfelMap::image_input(const sensor_msgs::ImageConstPtr &image_input)
 {
-    // printf("receive image!\n");
-    cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC1);
-    cv::Mat image = image_ptr->image;
-    ros::Time stamp = image_ptr->header.stamp;
-    image_buffer.push_back(std::make_pair(stamp, image));
-    synchronize_msgs();
+    if(surfel_state){
+        // printf("receive image!\n");
+        cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC1);
+        cv::Mat image = image_ptr->image;
+        ros::Time stamp = image_ptr->header.stamp;
+        image_buffer.push_back(std::make_pair(stamp, image));
+        synchronize_msgs();
+    }
+
 }
 
 int cnt = 0;
 void SurfelMap::depth_input(const sensor_msgs::ImageConstPtr &depth_input)
 {
-    // printf("receive depth!\n");
-    /*cnt++;
-    if(cnt % 3 == 0)*/
-    {
-        cv_bridge::CvImagePtr image_ptr;
-        image_ptr = cv_bridge::toCvCopy(depth_input, depth_input->encoding);
-        constexpr double kDepthScalingFactor = 0.001;
-        if(depth_input->encoding == sensor_msgs::image_encodings::TYPE_16UC1)
-            (image_ptr->image).convertTo(image_ptr->image, CV_32FC1, kDepthScalingFactor);
-        // image_ptr = cv_bridge::toCvCopy(depth_input, sensor_msgs::image_encodings::TYPE_32FC1);
-        cv::Mat image = image_ptr->image;
-        ros::Time stamp = image_ptr->header.stamp;
-        depth_buffer.push_back(std::make_pair(stamp, image));
-        synchronize_msgs();
+    if(surfel_state){
+        // printf("receive depth!\n");
+        /*cnt++;
+        if(cnt % 3 == 0)*/
+        {
+            cv_bridge::CvImagePtr image_ptr;
+            image_ptr = cv_bridge::toCvCopy(depth_input, depth_input->encoding);
+            constexpr double kDepthScalingFactor = 0.001;
+            if(depth_input->encoding == sensor_msgs::image_encodings::TYPE_16UC1)
+                (image_ptr->image).convertTo(image_ptr->image, CV_32FC1, kDepthScalingFactor);
+            // image_ptr = cv_bridge::toCvCopy(depth_input, sensor_msgs::image_encodings::TYPE_32FC1);
+            cv::Mat image = image_ptr->image;
+            ros::Time stamp = image_ptr->header.stamp;
+            depth_buffer.push_back(std::make_pair(stamp, image));
+            synchronize_msgs();
+        }
+
     }
+
 }
 
 void SurfelMap::synchronize_msgs()
@@ -228,17 +258,21 @@ void SurfelMap::synchronize_msgs()
 
 void SurfelMap::extrinsic_input(const nav_msgs::OdometryConstPtr &ex_input)
 {
-    geometry_msgs::Pose ex_pose = ex_input->pose.pose;
-    pose_ros2eigen(ex_pose, extrinsic_matrix);
-    // std::cout << "receive extrinsic pose" << std::endl <<  extrinsic_matrix << std::endl;
-    extrinsic_matrix_initialized = true;
+    if(surfel_state){
+        geometry_msgs::Pose ex_pose = ex_input->pose.pose;
+        pose_ros2eigen(ex_pose, extrinsic_matrix);
+        // std::cout << "receive extrinsic pose" << std::endl <<  extrinsic_matrix << std::endl;
+        extrinsic_matrix_initialized = true;
+    }
+
 }
 
 int lst_path_size;
 void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
 {   
-    cout<<"loop_path_input size: ="<<loop_path_input->poses.size()<<endl;
-    cout<<"poses_database size: ="<<poses_database.size()<<endl;
+    if(surfel_state){
+        cout<<"loop_path_input size: ="<<loop_path_input->poses.size()<<endl;
+        cout<<"poses_database size: ="<<poses_database.size()<<endl;
 
 /*    for(int i = loop_path_input->poses.size() - 2; i >= 0; i--)
     {
@@ -247,7 +281,7 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
     }
 
     for(int i = loop_path_input->poses.size() - 1; i >= 1; i--)
-    {   
+    {
         for(int j =  i - 1; j >= 0; j--)
             if( loop_path_input->poses[i].header.stamp.toSec() <= loop_path_input->poses[j].header.stamp.toSec())
             {
@@ -256,101 +290,121 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
             }
     }
 */
-    if(lst_path_size == loop_path_input->poses.size())
-        return;
-    
-    lst_path_size = loop_path_input->poses.size();
+        if(lst_path_size == loop_path_input->poses.size())
+            return;
 
-    if(is_first_path || (!extrinsic_matrix_initialized))
-    {
-        is_first_path = false;
-        pre_path_delete_time = loop_path_input->poses.back().header.stamp.toSec();
-        return;
-    }
+        lst_path_size = loop_path_input->poses.size();
 
-
-    //printf("\nbegin new frame process!!!\n");
-
-    // Eigen::Matrix4d imu2cam = Eigen::Matrix4d::Identity();
-    // imu2cam(0,0) = Ric00;
-    // imu2cam(0,1) = Ric01;
-    // imu2cam(0,2) = Ric02;
-    // imu2cam(1,0) = Ric10;
-    // imu2cam(1,1) = Ric11;
-    // imu2cam(1,2) = Ric12;
-    // imu2cam(2,0) = Ric20;
-    // imu2cam(2,1) = Ric21;
-    // imu2cam(2,2) = Ric22;
-    // imu2cam(0,3) = Tic0;
-    // imu2cam(1,3) = Tic1;
-    // imu2cam(2,3) = Tic2;
-    //std::cout << "imu2cam" << std::endl << imu2cam << std::endl;
-
-    nav_msgs::Path camera_path;
-    geometry_msgs::PoseStamped cam_posestamped;
-    for(int i = 0; i < loop_path_input->poses.size(); i++)
-    {
-        geometry_msgs::PoseStamped imu_posestamped = loop_path_input->poses[i];
-        if(imu_posestamped.header.stamp.toSec() < pre_path_delete_time)
-            continue;
-        cam_posestamped = imu_posestamped;
-        Eigen::Matrix4d imu_t, cam_t;
-        pose_ros2eigen(imu_posestamped.pose, imu_t);
-        cam_t = imu_t * extrinsic_matrix;
-        pose_eigen2ros(cam_t, cam_posestamped.pose);
-        camera_path.poses.push_back(cam_posestamped);
-    }
-
-    cam_posestamped.header.frame_id = "world";
-    cam_pose_publish.publish(cam_posestamped);
-
-    bool have_new_pose = false;
-    /*geometry_msgs::Pose input_pose;
-    if(camera_path.poses.size() > poses_database.size())
-    {
-        input_pose = camera_path.poses.back().pose;
-        have_new_pose = true;
-    }*/
-
-    if(camera_path.poses.size() > poses_database.size())
-    {
-        have_new_pose = true;
-    }
-
-    // first update the poses
-    bool loop_changed = false;
-    for(int i = 0; i < poses_database.size() && i < camera_path.poses.size(); i++)
-    {   
-
-        poses_database[i].loop_pose = camera_path.poses[i].pose;
-
-        if( poses_database[i].loop_pose.position.x != poses_database[i].cam_pose.position.x
-            || poses_database[i].loop_pose.position.y != poses_database[i].cam_pose.position.y
-            || poses_database[i].loop_pose.position.z != poses_database[i].cam_pose.position.z)
+        if(is_first_path || (!extrinsic_matrix_initialized))
         {
-            loop_changed = true;
+            is_first_path = false;
+            pre_path_delete_time = loop_path_input->poses.back().header.stamp.toSec();
+            return;
         }
-    }
 
-    //printf("warp the surfels according to the loop!\n");
-    std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
-    start_time = std::chrono::system_clock::now();
-    if(loop_changed)
-    {
-        warp_surfels();
-    }
-    end_time = std::chrono::system_clock::now();
-    std::chrono::duration<double> used_time = end_time - start_time;
-    double all_time = used_time.count() * 1000.0;
 
-    if(have_new_pose)
-    {
-        // add new pose
-        for(int i = 0; i < camera_path.poses.size(); i ++)
-        {   
-            if(poses_database.size() > 0)
+        //printf("\nbegin new frame process!!!\n");
+
+        // Eigen::Matrix4d imu2cam = Eigen::Matrix4d::Identity();
+        // imu2cam(0,0) = Ric00;
+        // imu2cam(0,1) = Ric01;
+        // imu2cam(0,2) = Ric02;
+        // imu2cam(1,0) = Ric10;
+        // imu2cam(1,1) = Ric11;
+        // imu2cam(1,2) = Ric12;
+        // imu2cam(2,0) = Ric20;
+        // imu2cam(2,1) = Ric21;
+        // imu2cam(2,2) = Ric22;
+        // imu2cam(0,3) = Tic0;
+        // imu2cam(1,3) = Tic1;
+        // imu2cam(2,3) = Tic2;
+        //std::cout << "imu2cam" << std::endl << imu2cam << std::endl;
+
+        nav_msgs::Path camera_path;
+        geometry_msgs::PoseStamped cam_posestamped;
+        for(int i = 0; i < loop_path_input->poses.size(); i++)
+        {
+            geometry_msgs::PoseStamped imu_posestamped = loop_path_input->poses[i];
+            if(imu_posestamped.header.stamp.toSec() < pre_path_delete_time)
+                continue;
+            cam_posestamped = imu_posestamped;
+            Eigen::Matrix4d imu_t, cam_t;
+            pose_ros2eigen(imu_posestamped.pose, imu_t);
+            cam_t = imu_t * extrinsic_matrix;
+            pose_eigen2ros(cam_t, cam_posestamped.pose);
+            camera_path.poses.push_back(cam_posestamped);
+        }
+
+        cam_posestamped.header.frame_id = "world";
+        cam_pose_publish.publish(cam_posestamped);
+
+        bool have_new_pose = false;
+        /*geometry_msgs::Pose input_pose;
+        if(camera_path.poses.size() > poses_database.size())
+        {
+            input_pose = camera_path.poses.back().pose;
+            have_new_pose = true;
+        }*/
+
+        if(camera_path.poses.size() > poses_database.size())
+        {
+            have_new_pose = true;
+        }
+
+        // first update the poses
+        bool loop_changed = false;
+        for(int i = 0; i < poses_database.size() && i < camera_path.poses.size(); i++)
+        {
+
+            poses_database[i].loop_pose = camera_path.poses[i].pose;
+
+            if( poses_database[i].loop_pose.position.x != poses_database[i].cam_pose.position.x
+                || poses_database[i].loop_pose.position.y != poses_database[i].cam_pose.position.y
+                || poses_database[i].loop_pose.position.z != poses_database[i].cam_pose.position.z)
             {
-                if(camera_path.poses[i].header.stamp.toSec() > poses_database.back().cam_stamp.toSec())
+                loop_changed = true;
+            }
+        }
+
+        //printf("warp the surfels according to the loop!\n");
+        std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
+        start_time = std::chrono::system_clock::now();
+        if(loop_changed)
+        {
+            warp_surfels();
+        }
+        end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> used_time = end_time - start_time;
+        double all_time = used_time.count() * 1000.0;
+
+        if(have_new_pose)
+        {
+            // add new pose
+            for(int i = 0; i < camera_path.poses.size(); i ++)
+            {
+                if(poses_database.size() > 0)
+                {
+                    if(camera_path.poses[i].header.stamp.toSec() > poses_database.back().cam_stamp.toSec())
+                    {
+                        PoseElement this_pose_element;
+                        int this_pose_index = poses_database.size();
+                        this_pose_element.cam_pose  = camera_path.poses[i].pose;
+                        this_pose_element.loop_pose = camera_path.poses[i].pose;
+                        this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
+
+                        //if(poses_database.size() > 0)
+                        //{
+                        int relative_index = poses_database.size() - 1;
+                        this_pose_element.linked_pose_index.push_back(relative_index);
+                        poses_database[relative_index].linked_pose_index.push_back(this_pose_index); //}
+
+                        poses_database.push_back(this_pose_element);
+                        local_surfels_indexs.insert(this_pose_index);
+
+                        pose_reference_buffer.push_back(std::make_pair(camera_path.poses[i].header.stamp, this_pose_index));
+                    }
+                }
+                else
                 {
                     PoseElement this_pose_element;
                     int this_pose_index = poses_database.size();
@@ -358,36 +412,20 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
                     this_pose_element.loop_pose = camera_path.poses[i].pose;
                     this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
 
-                    //if(poses_database.size() > 0)
-                    //{
-                    int relative_index = poses_database.size() - 1;
-                    this_pose_element.linked_pose_index.push_back(relative_index);
-                    poses_database[relative_index].linked_pose_index.push_back(this_pose_index); //}
-
                     poses_database.push_back(this_pose_element);
                     local_surfels_indexs.insert(this_pose_index);
 
                     pose_reference_buffer.push_back(std::make_pair(camera_path.poses[i].header.stamp, this_pose_index));
                 }
             }
-            else
-            {
-                PoseElement this_pose_element;
-                int this_pose_index = poses_database.size();
-                this_pose_element.cam_pose  = camera_path.poses[i].pose;
-                this_pose_element.loop_pose = camera_path.poses[i].pose;
-                this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
-
-                poses_database.push_back(this_pose_element);
-                local_surfels_indexs.insert(this_pose_index);
-
-                pose_reference_buffer.push_back(std::make_pair(camera_path.poses[i].header.stamp, this_pose_index));
-            }
+            synchronize_msgs();
         }
-        synchronize_msgs();
+
+        // push the msg into the buffer for fusion
     }
 
-    // push the msg into the buffer for fusion
+
+
 
 }
 

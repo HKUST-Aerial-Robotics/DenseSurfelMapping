@@ -25,6 +25,8 @@
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/Marker.h>
+#include <std_srvs/SetBool.h>
+#include <std_msgs/Int16.h>
 
 #include <elements.h>
 #include <fusion_functions.h>
@@ -58,6 +60,7 @@ public:
     void depth_input(const sensor_msgs::ImageConstPtr &image_input);
     void path_input(const nav_msgs::PathConstPtr &loop_path_input);
     void extrinsic_input(const nav_msgs::OdometryConstPtr &ex_input);
+    void surfel_cmd_callback(const std_msgs::Int16ConstPtr &cmd);
     void orb_results_input(
         const sensor_msgs::PointCloudConstPtr &loop_stamp_input,
         const nav_msgs::PathConstPtr &loop_path_input,
@@ -66,6 +69,9 @@ public:
     void save_mesh(string save_path_name);
     void save_map(const std_msgs::StringConstPtr &save_map_input);
     void publish_all_pointcloud(ros::Time pub_stamp);
+
+    bool surfel_state;
+    void set_map_dir(string str);
 
     // void loop_path_input(const nav_msgs::PathConstPtr &loop_path_input);
     // void loop_stamp_input(const sensor_msgs::PointcloudConstPtr &loop_stamp_input);
@@ -155,6 +161,9 @@ public:
     ros::Publisher driftfree_path_publish;
     ros::Publisher loop_marker_publish;
     ros::Publisher cam_pose_publish;
+
+    // save map
+    string map_dir;
 
     // for gaofei experiment
     bool is_first_path;

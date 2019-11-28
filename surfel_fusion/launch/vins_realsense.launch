@@ -1,0 +1,35 @@
+<launch>
+    <node pkg="surfel_fusion" type="surfel_fusion" name="surfel_fusion" clear_params="true" output="screen">
+
+        <!-- camera parameter -->
+        <param name="cam_width"  value="640" />
+        <param name="cam_height" value="480" />
+
+        <!--input image info-->
+        <param name="cam_fx" value="3.8445808939187248e+02" />
+        <param name="cam_fy" value="3.8398275569654390e+02" />
+        <param name="cam_cx" value="3.2247735741936430e+02" />
+        <param name="cam_cy" value="2.3707634648111778e+02" />
+
+        <!-- fusion parameter, all in meter -->
+        <param name="fuse_far_distence"  value="3.0" />
+        <param name="fuse_near_distence" value="0.1" />
+
+        <!-- for deform the map -->
+        <param name="drift_free_poses" value="300" />
+
+        <!-- for data save -->
+        <remap from="~image" to="/camera/infra1/image_rect_raw" />
+        <remap from="~depth" to="/camera/depth/image_rect_raw" />
+        <remap from="~loop_path" to="/loop_fusion/pose_graph_path" />
+        <remap from="~extrinsic_pose" to="/vins_estimator/extrinsic" />
+
+        <param name="save_name" value="$(find surfel_fusion)/../../../output_map"/>
+
+    </node>
+
+    <node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false"
+          args="-d $(find rviz_visual_tools)/launch/map.rviz">
+    </node>
+
+</launch>
