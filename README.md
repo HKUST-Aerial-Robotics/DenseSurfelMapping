@@ -33,7 +33,30 @@ alt="video" width="432" height="316" border="10" /></a>
 </p>
 
 ## Running with VINS-Mono
+
 We have use the surfel fusion with VINS-Mono in lots of UAV projects. For depth estimation, we recommend high quality depth methods/devices, for example [MVDepthNet](https://github.com/HKUST-Aerial-Robotics/MVDepthNet) or intel-realsense. Please refer to ```/launch/fuse_depthnet.launch``` for detailed parameters. The system takes paired image and depth map as input. Since VINS-Mono publishes imu poses, we also need to receive ```/vins_estimator/extrinsic``` for converting imu poses into camera poses.
+
+## Running with VINS-Fusion Dataset
+![Run with VINs_Fusion](fig/rviz_tools.png)
+
+#### Download and launch rviz visual tools
+Clone the tools [ground_station_msgs](git@github.com:glennliu/ground_station_msgs.git) and [rviz_visual_tools](https://github.com/glennliu/rviz_visual_tools) into your catkin workspace. Compile them by `catkin_make`. 
+This is a configured rviz panel that visualize most of data you needed.
+
+#### Run VINS-Fusion bag
+
+Download VINS-Fusion rosbag we provided [here](https://hkustconnect-my.sharepoint.com/:u:/g/personal/cliuci_connect_ust_hk/ETBxe2X_a4JPshZn1n56drMB6x8kWaoWE_IOA_IBZ428mg?e=CivoB5) and run the bag,
+```js
+rosbag play surfel_lab.bag
+````
+If you have [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) configured correct, you can also directly run it with VINS-Fusion.
+
+#### Launch Surfel Fusion
+```js
+roslaunch surfel_fusion vins_realsense.launch
+```
+On the Rviz panel, click the ``HandleHold`` button on the left corner. Then click `Start`.
+When you finish, click `Finish` button.
 
 ## Ackonwledgement
 We thank Gao Fei, Pan Jie, and Wang Luqi, for their contribution to the code and suggestions.
