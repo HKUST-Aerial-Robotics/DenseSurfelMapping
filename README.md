@@ -39,19 +39,18 @@ We have use the surfel fusion with VINS-Mono in lots of UAV projects. For depth 
 ## Running with VINS-Fusion Dataset
 ![Run with VINs_Fusion](fig/rviz_tools.png)
 
-#### Download and launch rviz visual tools
+**Step1: Download and launch rviz visual tools**
 Clone the tools [ground_station_msgs](git@github.com:glennliu/ground_station_msgs.git) and [rviz_visual_tools](https://github.com/glennliu/rviz_visual_tools) into your catkin workspace. Compile them by `catkin_make`. 
 This is a configured rviz panel that visualize most of data you needed.
 
-#### Run VINS-Fusion bag
-
+**Step2: Run VINS-Fusion bag**
 Download VINS-Fusion rosbag we provided [here](https://hkustconnect-my.sharepoint.com/:u:/g/personal/cliuci_connect_ust_hk/ETBxe2X_a4JPshZn1n56drMB6x8kWaoWE_IOA_IBZ428mg?e=CivoB5) and run the bag,
 ```js
 rosbag play surfel_lab.bag
-````
+```
 If you have [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) configured correct, you can also directly run it with VINS-Fusion.
 
-#### Launch Surfel Fusion
+**Step3: Launch Surfel Fusion**
 ```js
 roslaunch surfel_fusion vins_realsense.launch
 ```
