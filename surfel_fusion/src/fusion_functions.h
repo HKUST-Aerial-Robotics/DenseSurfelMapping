@@ -31,6 +31,7 @@ private:
 
     cv::Mat image;
     cv::Mat depth;
+    cv::Mat color;
 
     std::vector<double> space_map;
     std::vector<float> norm_map;
@@ -90,6 +91,7 @@ public:
         int reference_frame_index,
         cv::Mat &input_image,
         cv::Mat &input_depth,
+        cv::Mat &input_color,
         Eigen::Matrix4f &pose,
         std::vector<SurfelElement> &local_surfels,
         std::vector<SurfelElement> &new_surfels);

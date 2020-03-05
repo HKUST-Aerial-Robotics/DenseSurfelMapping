@@ -35,6 +35,9 @@
 
 typedef pcl::PointXYZI PointType;
 typedef pcl::PointCloud<PointType> PointCloud;
+typedef pcl::PointXYZRGBNormal ColorMeshType;
+typedef pcl::PointCloud<PointType> PointMesh;
+
 
 using namespace std;
 
@@ -58,6 +61,7 @@ public:
 
     void image_input(const sensor_msgs::ImageConstPtr &image_input);
     void depth_input(const sensor_msgs::ImageConstPtr &image_input);
+    void color_input(const sensor_msgs::ImageConstPtr &image_input);
     void path_input(const nav_msgs::PathConstPtr &loop_path_input);
     void extrinsic_input(const nav_msgs::OdometryConstPtr &ex_input);
     void surfel_cmd_callback(const std_msgs::Int16ConstPtr &cmd);
@@ -81,7 +85,7 @@ public:
     void synchronize_msgs();
     // void initialize_map(cv::Mat image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
     // void fuse_map(cv::Mat image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
-    void fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_input, int reference_index);
+    void fuse_map(cv::Mat image, cv::Mat depth, cv::Mat color, Eigen::Matrix4f pose_input, int reference_index);
     void move_add_surfels(int reference_index);
     void move_all_surfels();
     bool synchronize_buffer();
@@ -106,6 +110,7 @@ public:
     // receive buffer
     std::deque<std::pair<ros::Time, cv::Mat>> image_buffer;
     std::deque<std::pair<ros::Time, cv::Mat>> depth_buffer;
+    std::deque<std::pair<ros::Time, cv::Mat>> color_buffer;
     std::deque<std::pair<ros::Time, int>> pose_reference_buffer;
 
     // geometry_msgs::PoseStamped await_pose;

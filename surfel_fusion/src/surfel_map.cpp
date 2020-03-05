@@ -68,7 +68,7 @@ inactive_pointcloud(new PointCloud)
     //
     is_first_path = true;
     extrinsic_matrix_initialized = false;
-    surfel_state = false;
+    surfel_state = true;
 }
 
 SurfelMap::~SurfelMap()
@@ -120,6 +120,21 @@ void SurfelMap::image_input(const sensor_msgs::ImageConstPtr &image_input)
 
 }
 
+void SurfelMap::color_input(const sensor_msgs::ImageConstPtr &image_input)
+{
+    if(surfel_state){
+
+//        printf("receive color!\n");
+        cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC3);
+        cv::Mat image = image_ptr->image;
+        ros::Time stamp = image_ptr->header.stamp;
+        color_buffer.push_back(std::make_pair(stamp, image));
+        synchronize_msgs();
+
+    }
+
+}
+
 int cnt = 0;
 void SurfelMap::depth_input(const sensor_msgs::ImageConstPtr &depth_input)
 {
@@ -159,6 +174,7 @@ void SurfelMap::synchronize_msgs()
         double pose_reference_time = fuse_stamp.toSec();
         int image_num = -1;
         int depth_num = -1;
+
         for(int image_i = 0; image_i < image_buffer.size(); image_i++)
         {
             double image_time = image_buffer[image_i].first.toSec();
@@ -194,12 +210,13 @@ void SurfelMap::synchronize_msgs()
         // /rintf("fuse map begins!\n");
 
         //std::cout<<"image_num:"<<image_num<<"\nima"
-        cv::Mat image, depth;
+        cv::Mat image, depth, color;
         image = image_buffer[image_num].second;
         depth = depth_buffer[depth_num].second;
+        color = color_buffer[image_num].second;
         /*image = image_buffer.front().second;
         depth = depth_buffer.front().second;*/
-        fuse_map(image, depth, fuse_pose_eigen.cast<float>(), relative_index);
+        fuse_map(image, depth, color, fuse_pose_eigen.cast<float>(), relative_index);
         //printf("fuse map done!\n");
 
         move_all_surfels();
@@ -690,7 +707,7 @@ void SurfelMap::publish_pose_graph(ros::Time pub_stamp, int reference_index)
 }
 
 
-void SurfelMap::fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_input, int reference_index)
+void SurfelMap::fuse_map(cv::Mat image, cv::Mat depth, cv::Mat color, Eigen::Matrix4f pose_input, int reference_index)
 {
     //printf("fuse surfels with reference index %d and %d surfels!\n", reference_index, local_surfels.size());    
     Timer fuse_timer("fusing");
@@ -700,6 +717,7 @@ void SurfelMap::fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_inpu
         reference_index,
         image,
         depth,
+        color,
         pose_input,
         local_surfels,
         new_surfels
@@ -834,17 +852,24 @@ void SurfelMap::push_a_surfel(vector<float> &vertexs, SurfelElement &this_surfel
     point5 = surfel_position - x_dir * h_r + y_dir * t_r;
     point6 = surfel_position + x_dir * h_r + y_dir * t_r;
     vertexs.push_back(point1(0));vertexs.push_back(point1(1));vertexs.push_back(point1(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    vertexs.push_back(this_surfel.rgb_color[0]);vertexs.push_back(this_surfel.rgb_color[1]);vertexs.push_back(this_surfel.rgb_color[2]);
     vertexs.push_back(point2(0));vertexs.push_back(point2(1));vertexs.push_back(point2(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    vertexs.push_back(this_surfel.rgb_color[0]);vertexs.push_back(this_surfel.rgb_color[1]);vertexs.push_back(this_surfel.rgb_color[2]);
     vertexs.push_back(point3(0));vertexs.push_back(point3(1));vertexs.push_back(point3(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    vertexs.push_back(this_surfel.rgb_color[0]);vertexs.push_back(this_surfel.rgb_color[1]);vertexs.push_back(this_surfel.rgb_color[2]);
     vertexs.push_back(point4(0));vertexs.push_back(point4(1));vertexs.push_back(point4(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    vertexs.push_back(this_surfel.rgb_color[0]);vertexs.push_back(this_surfel.rgb_color[1]);vertexs.push_back(this_surfel.rgb_color[2]);
     vertexs.push_back(point5(0));vertexs.push_back(point5(1));vertexs.push_back(point5(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    vertexs.push_back(this_surfel.rgb_color[0]);vertexs.push_back(this_surfel.rgb_color[1]);vertexs.push_back(this_surfel.rgb_color[2]);
     vertexs.push_back(point6(0));vertexs.push_back(point6(1));vertexs.push_back(point6(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    vertexs.push_back(this_surfel.rgb_color[0]);vertexs.push_back(this_surfel.rgb_color[1]);vertexs.push_back(this_surfel.rgb_color[2]);
+
 }
 
 
@@ -1031,6 +1056,7 @@ void SurfelMap::publish_all_pointcloud(ros::Time pub_stamp)
         p.y = local_surfels[surfel_it].py;
         p.z = local_surfels[surfel_it].pz;
         p.intensity = local_surfels[surfel_it].color;
+
         pointcloud->push_back(p);
     }
 

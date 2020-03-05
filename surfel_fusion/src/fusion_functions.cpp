@@ -31,6 +31,7 @@ void FusionFunctions::fuse_initialize_map(
     int reference_frame_index,
     cv::Mat &input_image,
     cv::Mat &input_depth,
+    cv::Mat &input_color,
     Eigen::Matrix4f &pose,
     std::vector<SurfelElement> &local_surfels,
     std::vector<SurfelElement> &new_surfels)
@@ -44,6 +45,7 @@ void FusionFunctions::fuse_initialize_map(
 
     image = input_image;
     depth = input_depth;
+    color = input_color;
 
     local_surfels_ptr = &local_surfels;
     new_surfels_ptr = &new_surfels;
@@ -303,6 +305,7 @@ void FusionFunctions::fuse_surfels_kernel(
         local_surfels[i].nz = new_norm_w(2);
         local_surfels[i].weight = sum_weight;
         local_surfels[i].color = superpixel_seeds[sp_index].mean_intensity;
+        local_surfels[i].rgb_color = superpixel_seeds[sp_index].rgb_color;
         float new_size = superpixel_seeds[sp_index].size * fabs(superpixel_seeds[sp_index].mean_depth / (camera_f * superpixel_seeds[sp_index].view_cos));
         if (new_size < local_surfels[i].size)
             local_surfels[i].size = new_size;
@@ -664,6 +667,7 @@ void FusionFunctions::initialize_seeds_kernel(
         this_sp.x = image_x;
         this_sp.y = image_y;
         this_sp.mean_intensity = image.at<uchar>(image_y, image_x);
+        this_sp.rgb_color = color.at<cv::Vec3b>(image_y,image_x);
         this_sp.fused = false;
         this_sp.stable = false;
         this_sp.mean_depth = depth.at<float>(image_y, image_x);
