@@ -7,7 +7,8 @@
 SurfelMap::SurfelMap(ros::NodeHandle &_nh):
 nh(_nh),
 // fuse_param_gpuptr(NULL),
-inactive_pointcloud(new PointCloud)
+inactive_pointcloud(new PointCloud),
+rgb_inactive_pcd (new RgbPointCloud)
 {
     // get the parameters
     bool get_all = true;
@@ -58,9 +59,11 @@ inactive_pointcloud(new PointCloud)
     cam_pose_publish = nh.advertise<geometry_msgs::PoseStamped>("cam_pose", 10);
 
     raw_pointcloud_publish = nh.advertise<PointCloud>("raw_pointcloud", 10);
+    rgb_pointcloud_publish = nh.advertise<RgbPointCloud>("rgb_pointcloud",10);
     loop_path_publish = nh.advertise<nav_msgs::Path>("fusion_loop_path", 10);
     driftfree_path_publish = nh.advertise<visualization_msgs::Marker>("driftfree_loop_path", 10);
     loop_marker_publish = nh.advertise<visualization_msgs::Marker>("loop_marker", 10);
+    sp_img_publish = nh.advertise<sensor_msgs::Image>("sp_image",10);
 
     // render_tool initialize
     // render_tool.initialize_rendertool(cam_width, cam_height, cam_fx, cam_fy, cam_cx, cam_cy);
@@ -68,6 +71,24 @@ inactive_pointcloud(new PointCloud)
     //
     is_first_path = true;
     extrinsic_matrix_initialized = false;
+    surfel_state = true;
+
+    // [Realsense] Transfer from depth image plane to color image plane
+    // [Realsense] Infra1 image and Depth image are on the same plane
+    T_d2c = Eigen::Matrix4d::Identity();
+    T_d2c(0,0) = 0.9998767375946045;
+    T_d2c(0,1) = -0.015462320297956467;
+    T_d2c(0,2) = -0.0027260484639555216;
+    T_d2c(1,0) = 0.015454881824553013;
+    T_d2c(1,1) = 0.999876856803894;
+    T_d2c(1,2) = -0.0027289048302918673;
+    T_d2c(2,0) = 0.0027679079212248325 ;
+    T_d2c(2,1) = 0.0026864376850426197;
+    T_d2c(2,2) = 0.9999925494194031;
+    T_d2c(0,3) = 0.014925898984074593;
+    T_d2c(1,3) = 8.836767665343359e-05;
+    T_d2c(2,3) = 0.00035375202423892915;
+
 }
 
 SurfelMap::~SurfelMap()
@@ -76,42 +97,89 @@ SurfelMap::~SurfelMap()
     //     cudaFree(fuse_param_gpuptr);
 }
 
+void SurfelMap::surfel_cmd_callback(const std_msgs::Int16ConstPtr &cmd)
+{
+    switch(cmd->data){
+        case 1: // SURFEL INIT
+            ROS_WARN("Surfel Start!");
+            surfel_state = true;
+            break;
+        case 2: // SURFEL SAVE MAP AND RESET
+            ROS_WARN("Surfel STOP!");
+            save_mesh(map_dir + ".ply");
+            save_cloud(map_dir + ".pcd");
+            surfel_state = false;
+            break;
+    }
+}
+
+void SurfelMap::set_map_dir(string str)
+{
+    map_dir = str;
+}
+
 void SurfelMap::save_map(const std_msgs::StringConstPtr &save_map_input)
 {
     string save_name = save_map_input->data;
     printf("save mesh modelt to %s.\n", save_name.c_str());
     save_mesh(save_name);
+    save_cloud(save_name);
     printf("save done!\n");
 }
 
 void SurfelMap::image_input(const sensor_msgs::ImageConstPtr &image_input)
 {
-    // printf("receive image!\n");
-    cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC1);
-    cv::Mat image = image_ptr->image;
-    ros::Time stamp = image_ptr->header.stamp;
-    image_buffer.push_back(std::make_pair(stamp, image));
-    synchronize_msgs();
+    if(surfel_state){
+//         printf("receive grey_image!\n");
+//        cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC1);
+        cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input);
+        cv::Mat image = image_ptr->image;
+        ros::Time stamp = image_ptr->header.stamp;
+//        ROS_INFO("grey_image encoding %d",grey_image.type());
+//        ROS_INFO("grey_image channels %d",grey_image.channels());
+        image_buffer.push_back(std::make_pair(stamp, image));
+        synchronize_msgs();
+    }
+
+}
+
+void SurfelMap::color_input(const sensor_msgs::ImageConstPtr &image_input)
+{
+    if(surfel_state){
+
+//        printf("receive color!\n");
+        cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC3);
+        cv::Mat image = image_ptr->image;
+        ros::Time stamp = image_ptr->header.stamp;
+        color_buffer.push_back(std::make_pair(stamp, image));
+        synchronize_msgs();
+
+    }
+
 }
 
 int cnt = 0;
 void SurfelMap::depth_input(const sensor_msgs::ImageConstPtr &depth_input)
 {
-    // printf("receive depth!\n");
-    /*cnt++;
-    if(cnt % 3 == 0)*/
-    {
-        cv_bridge::CvImagePtr image_ptr;
-        image_ptr = cv_bridge::toCvCopy(depth_input, depth_input->encoding);
-        constexpr double kDepthScalingFactor = 0.001;
-        if(depth_input->encoding == sensor_msgs::image_encodings::TYPE_16UC1)
-            (image_ptr->image).convertTo(image_ptr->image, CV_32FC1, kDepthScalingFactor);
-        // image_ptr = cv_bridge::toCvCopy(depth_input, sensor_msgs::image_encodings::TYPE_32FC1);
-        cv::Mat image = image_ptr->image;
-        ros::Time stamp = image_ptr->header.stamp;
-        depth_buffer.push_back(std::make_pair(stamp, image));
-        synchronize_msgs();
+    if(surfel_state){
+        // printf("receive depth!\n");
+        /*cnt++;
+        if(cnt % 3 == 0)*/
+        {
+            cv_bridge::CvImagePtr image_ptr;
+            image_ptr = cv_bridge::toCvCopy(depth_input, depth_input->encoding);
+            constexpr double kDepthScalingFactor = 0.001;
+            if(depth_input->encoding == sensor_msgs::image_encodings::TYPE_16UC1)
+                (image_ptr->image).convertTo(image_ptr->image, CV_32FC1, kDepthScalingFactor);
+            // image_ptr = cv_bridge::toCvCopy(depth_input, sensor_msgs::image_encodings::TYPE_32FC1);
+            cv::Mat image = image_ptr->image;
+            ros::Time stamp = image_ptr->header.stamp;
+            depth_buffer.push_back(std::make_pair(stamp, image));
+            synchronize_msgs();
+        }
+
     }
+
 }
 
 void SurfelMap::synchronize_msgs()
@@ -129,13 +197,14 @@ void SurfelMap::synchronize_msgs()
         double pose_reference_time = fuse_stamp.toSec();
         int image_num = -1;
         int depth_num = -1;
+
         for(int image_i = 0; image_i < image_buffer.size(); image_i++)
         {
             double image_time = image_buffer[image_i].first.toSec();
             if(fabs(image_time - pose_reference_time) < 0.01)
             {   
-                /*if(fabs(image_time - pose_reference_time) > 0.00001)
-                    ROS_ERROR("diff time:= %f", fabs(image_time - pose_reference_time));*/
+                if(fabs(image_time - pose_reference_time) > 0.00001)
+                    ROS_ERROR("diff time:= %f", fabs(image_time - pose_reference_time));
                 image_num = image_i;
             }
         }
@@ -144,8 +213,8 @@ void SurfelMap::synchronize_msgs()
             double depth_time = depth_buffer[depth_i].first.toSec();
             if(fabs(depth_time - pose_reference_time) < 0.01)
             {   
-                /*if(fabs(depth_time - pose_reference_time) > 0.00001)
-                    ROS_ERROR("diff time:= %f", fabs(depth_time - pose_reference_time));*/
+                if(fabs(depth_time - pose_reference_time) > 0.00001)
+                    ROS_ERROR("diff time:= %f", fabs(depth_time - pose_reference_time));
                 depth_num = depth_i;
             }
         }
@@ -160,13 +229,15 @@ void SurfelMap::synchronize_msgs()
 
         move_add_surfels(relative_index);
 
-        // fuse the current image/depth
+        // fuse the current grey_image/depth
         // /rintf("fuse map begins!\n");
 
         //std::cout<<"image_num:"<<image_num<<"\nima"
-        cv::Mat image, depth;
+        cv::Mat image, depth, color;
         image = image_buffer[image_num].second;
         depth = depth_buffer[depth_num].second;
+        /*grey_image = image_buffer.front().second;
+        color = color_buffer[image_num].second;
         /*image = image_buffer.front().second;
         depth = depth_buffer.front().second;*/
         fuse_map(image, depth, fuse_pose_eigen.cast<float>(), relative_index);
@@ -228,17 +299,21 @@ void SurfelMap::synchronize_msgs()
 
 void SurfelMap::extrinsic_input(const nav_msgs::OdometryConstPtr &ex_input)
 {
-    geometry_msgs::Pose ex_pose = ex_input->pose.pose;
-    pose_ros2eigen(ex_pose, extrinsic_matrix);
-    // std::cout << "receive extrinsic pose" << std::endl <<  extrinsic_matrix << std::endl;
-    extrinsic_matrix_initialized = true;
+    if(surfel_state){
+        geometry_msgs::Pose ex_pose = ex_input->pose.pose;
+        pose_ros2eigen(ex_pose, extrinsic_matrix);
+        // std::cout << "receive extrinsic pose" << std::endl <<  extrinsic_matrix << std::endl;
+        extrinsic_matrix_initialized = true;
+    }
+
 }
 
 int lst_path_size;
 void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
 {   
-    cout<<"loop_path_input size: ="<<loop_path_input->poses.size()<<endl;
-    cout<<"poses_database size: ="<<poses_database.size()<<endl;
+    if(surfel_state){
+        cout<<"loop_path_input size: ="<<loop_path_input->poses.size()<<endl;
+        cout<<"poses_database size: ="<<poses_database.size()<<endl;
 
 /*    for(int i = loop_path_input->poses.size() - 2; i >= 0; i--)
     {
@@ -247,7 +322,7 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
     }
 
     for(int i = loop_path_input->poses.size() - 1; i >= 1; i--)
-    {   
+    {
         for(int j =  i - 1; j >= 0; j--)
             if( loop_path_input->poses[i].header.stamp.toSec() <= loop_path_input->poses[j].header.stamp.toSec())
             {
@@ -256,101 +331,121 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
             }
     }
 */
-    if(lst_path_size == loop_path_input->poses.size())
-        return;
-    
-    lst_path_size = loop_path_input->poses.size();
+        if(lst_path_size == loop_path_input->poses.size())
+            return;
 
-    if(is_first_path || (!extrinsic_matrix_initialized))
-    {
-        is_first_path = false;
-        pre_path_delete_time = loop_path_input->poses.back().header.stamp.toSec();
-        return;
-    }
+        lst_path_size = loop_path_input->poses.size();
 
-
-    //printf("\nbegin new frame process!!!\n");
-
-    // Eigen::Matrix4d imu2cam = Eigen::Matrix4d::Identity();
-    // imu2cam(0,0) = Ric00;
-    // imu2cam(0,1) = Ric01;
-    // imu2cam(0,2) = Ric02;
-    // imu2cam(1,0) = Ric10;
-    // imu2cam(1,1) = Ric11;
-    // imu2cam(1,2) = Ric12;
-    // imu2cam(2,0) = Ric20;
-    // imu2cam(2,1) = Ric21;
-    // imu2cam(2,2) = Ric22;
-    // imu2cam(0,3) = Tic0;
-    // imu2cam(1,3) = Tic1;
-    // imu2cam(2,3) = Tic2;
-    //std::cout << "imu2cam" << std::endl << imu2cam << std::endl;
-
-    nav_msgs::Path camera_path;
-    geometry_msgs::PoseStamped cam_posestamped;
-    for(int i = 0; i < loop_path_input->poses.size(); i++)
-    {
-        geometry_msgs::PoseStamped imu_posestamped = loop_path_input->poses[i];
-        if(imu_posestamped.header.stamp.toSec() < pre_path_delete_time)
-            continue;
-        cam_posestamped = imu_posestamped;
-        Eigen::Matrix4d imu_t, cam_t;
-        pose_ros2eigen(imu_posestamped.pose, imu_t);
-        cam_t = imu_t * extrinsic_matrix;
-        pose_eigen2ros(cam_t, cam_posestamped.pose);
-        camera_path.poses.push_back(cam_posestamped);
-    }
-
-    cam_posestamped.header.frame_id = "world";
-    cam_pose_publish.publish(cam_posestamped);
-
-    bool have_new_pose = false;
-    /*geometry_msgs::Pose input_pose;
-    if(camera_path.poses.size() > poses_database.size())
-    {
-        input_pose = camera_path.poses.back().pose;
-        have_new_pose = true;
-    }*/
-
-    if(camera_path.poses.size() > poses_database.size())
-    {
-        have_new_pose = true;
-    }
-
-    // first update the poses
-    bool loop_changed = false;
-    for(int i = 0; i < poses_database.size() && i < camera_path.poses.size(); i++)
-    {   
-
-        poses_database[i].loop_pose = camera_path.poses[i].pose;
-
-        if( poses_database[i].loop_pose.position.x != poses_database[i].cam_pose.position.x
-            || poses_database[i].loop_pose.position.y != poses_database[i].cam_pose.position.y
-            || poses_database[i].loop_pose.position.z != poses_database[i].cam_pose.position.z)
+        if(is_first_path || (!extrinsic_matrix_initialized))
         {
-            loop_changed = true;
+            is_first_path = false;
+            pre_path_delete_time = loop_path_input->poses.back().header.stamp.toSec();
+            return;
         }
-    }
 
-    //printf("warp the surfels according to the loop!\n");
-    std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
-    start_time = std::chrono::system_clock::now();
-    if(loop_changed)
-    {
-        warp_surfels();
-    }
-    end_time = std::chrono::system_clock::now();
-    std::chrono::duration<double> used_time = end_time - start_time;
-    double all_time = used_time.count() * 1000.0;
 
-    if(have_new_pose)
-    {
-        // add new pose
-        for(int i = 0; i < camera_path.poses.size(); i ++)
-        {   
-            if(poses_database.size() > 0)
+        //printf("\nbegin new frame process!!!\n");
+
+        // Eigen::Matrix4d imu2cam = Eigen::Matrix4d::Identity();
+        // imu2cam(0,0) = Ric00;
+        // imu2cam(0,1) = Ric01;
+        // imu2cam(0,2) = Ric02;
+        // imu2cam(1,0) = Ric10;
+        // imu2cam(1,1) = Ric11;
+        // imu2cam(1,2) = Ric12;
+        // imu2cam(2,0) = Ric20;
+        // imu2cam(2,1) = Ric21;
+        // imu2cam(2,2) = Ric22;
+        // imu2cam(0,3) = Tic0;
+        // imu2cam(1,3) = Tic1;
+        // imu2cam(2,3) = Tic2;
+        //std::cout << "imu2cam" << std::endl << imu2cam << std::endl;
+
+        nav_msgs::Path camera_path;
+        geometry_msgs::PoseStamped cam_posestamped;
+        for(int i = 0; i < loop_path_input->poses.size(); i++)
+        {
+            geometry_msgs::PoseStamped imu_posestamped = loop_path_input->poses[i];
+            if(imu_posestamped.header.stamp.toSec() < pre_path_delete_time)
+                continue;
+            cam_posestamped = imu_posestamped;
+            Eigen::Matrix4d imu_t, cam_t;
+            pose_ros2eigen(imu_posestamped.pose, imu_t);
+            cam_t = imu_t * extrinsic_matrix * T_d2c;
+            pose_eigen2ros(cam_t, cam_posestamped.pose);
+            camera_path.poses.push_back(cam_posestamped);
+        }
+
+        cam_posestamped.header.frame_id = "world";
+        cam_pose_publish.publish(cam_posestamped);
+
+        bool have_new_pose = false;
+        /*geometry_msgs::Pose input_pose;
+        if(camera_path.poses.size() > poses_database.size())
+        {
+            input_pose = camera_path.poses.back().pose;
+            have_new_pose = true;
+        }*/
+
+        if(camera_path.poses.size() > poses_database.size())
+        {
+            have_new_pose = true;
+        }
+
+        // first update the poses
+        bool loop_changed = false;
+        for(int i = 0; i < poses_database.size() && i < camera_path.poses.size(); i++)
+        {
+
+            poses_database[i].loop_pose = camera_path.poses[i].pose;
+
+            if( poses_database[i].loop_pose.position.x != poses_database[i].cam_pose.position.x
+                || poses_database[i].loop_pose.position.y != poses_database[i].cam_pose.position.y
+                || poses_database[i].loop_pose.position.z != poses_database[i].cam_pose.position.z)
             {
-                if(camera_path.poses[i].header.stamp.toSec() > poses_database.back().cam_stamp.toSec())
+                loop_changed = true;
+            }
+        }
+
+        //printf("warp the surfels according to the loop!\n");
+        std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
+        start_time = std::chrono::system_clock::now();
+        if(loop_changed)
+        {
+            warp_surfels();
+        }
+        end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> used_time = end_time - start_time;
+        double all_time = used_time.count() * 1000.0;
+
+        if(have_new_pose)
+        {
+            // add new pose
+            for(int i = 0; i < camera_path.poses.size(); i ++)
+            {
+                if(poses_database.size() > 0)
+                {
+                    if(camera_path.poses[i].header.stamp.toSec() > poses_database.back().cam_stamp.toSec())
+                    {
+                        PoseElement this_pose_element;
+                        int this_pose_index = poses_database.size();
+                        this_pose_element.cam_pose  = camera_path.poses[i].pose;
+                        this_pose_element.loop_pose = camera_path.poses[i].pose;
+                        this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
+
+                        //if(poses_database.size() > 0)
+                        //{
+                        int relative_index = poses_database.size() - 1;
+                        this_pose_element.linked_pose_index.push_back(relative_index);
+                        poses_database[relative_index].linked_pose_index.push_back(this_pose_index); //}
+
+                        poses_database.push_back(this_pose_element);
+                        local_surfels_indexs.insert(this_pose_index);
+
+                        pose_reference_buffer.push_back(std::make_pair(camera_path.poses[i].header.stamp, this_pose_index));
+                    }
+                }
+                else
                 {
                     PoseElement this_pose_element;
                     int this_pose_index = poses_database.size();
@@ -358,36 +453,20 @@ void SurfelMap::path_input(const nav_msgs::PathConstPtr &loop_path_input)
                     this_pose_element.loop_pose = camera_path.poses[i].pose;
                     this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
 
-                    //if(poses_database.size() > 0)
-                    //{
-                    int relative_index = poses_database.size() - 1;
-                    this_pose_element.linked_pose_index.push_back(relative_index);
-                    poses_database[relative_index].linked_pose_index.push_back(this_pose_index); //}
-
                     poses_database.push_back(this_pose_element);
                     local_surfels_indexs.insert(this_pose_index);
 
                     pose_reference_buffer.push_back(std::make_pair(camera_path.poses[i].header.stamp, this_pose_index));
                 }
             }
-            else
-            {
-                PoseElement this_pose_element;
-                int this_pose_index = poses_database.size();
-                this_pose_element.cam_pose  = camera_path.poses[i].pose;
-                this_pose_element.loop_pose = camera_path.poses[i].pose;
-                this_pose_element.cam_stamp = camera_path.poses[i].header.stamp;
-
-                poses_database.push_back(this_pose_element);
-                local_surfels_indexs.insert(this_pose_index);
-
-                pose_reference_buffer.push_back(std::make_pair(camera_path.poses[i].header.stamp, this_pose_index));
-            }
+            synchronize_msgs();
         }
-        synchronize_msgs();
+
+        // push the msg into the buffer for fusion
     }
 
-    // push the msg into the buffer for fusion
+
+
 
 }
 
@@ -662,6 +741,7 @@ void SurfelMap::fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_inpu
         reference_index,
         image,
         depth,
+        debug_image,
         pose_input,
         local_surfels,
         new_surfels
@@ -704,6 +784,10 @@ void SurfelMap::fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_inpu
     fuse_timer.middle("cpu part");
     //printf("add %d surfels, we now have %d local surfels.\n", add_surfel_num, local_surfels.size());
     fuse_timer.end();
+
+//    cv_bridge::CvImagePtr debug_img_ptr;
+    sensor_msgs::ImagePtr debug_img_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8",debug_image).toImageMsg();
+    sp_img_publish.publish(debug_img_msg);
 }
 
 void SurfelMap::publish_raw_pointcloud(cv::Mat &depth, cv::Mat &reference, geometry_msgs::Pose &pose)
@@ -770,6 +854,7 @@ void SurfelMap::save_cloud(string save_path_name)
 void SurfelMap::push_a_surfel(vector<float> &vertexs, SurfelElement &this_surfel)
 {
     int surfel_color = this_surfel.color;
+    cv::Vec3b rgb_color = this_surfel.rgb_color;
     Eigen::Vector3f surfel_position;
     surfel_position(0) = this_surfel.px;
     surfel_position(1) = this_surfel.py;
@@ -795,18 +880,42 @@ void SurfelMap::push_a_surfel(vector<float> &vertexs, SurfelElement &this_surfel
     point4 = surfel_position + x_dir * radius;
     point5 = surfel_position - x_dir * h_r + y_dir * t_r;
     point6 = surfel_position + x_dir * h_r + y_dir * t_r;
-    vertexs.push_back(point1(0));vertexs.push_back(point1(1));vertexs.push_back(point1(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
-    vertexs.push_back(point2(0));vertexs.push_back(point2(1));vertexs.push_back(point2(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
-    vertexs.push_back(point3(0));vertexs.push_back(point3(1));vertexs.push_back(point3(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
-    vertexs.push_back(point4(0));vertexs.push_back(point4(1));vertexs.push_back(point4(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
-    vertexs.push_back(point5(0));vertexs.push_back(point5(1));vertexs.push_back(point5(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
-    vertexs.push_back(point6(0));vertexs.push_back(point6(1));vertexs.push_back(point6(2));
-    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    if(image_buffer[0].second.channels() ==3){
+        vertexs.push_back(point1(0));vertexs.push_back(point1(1));vertexs.push_back(point1(2));
+        vertexs.push_back(rgb_color[0]);vertexs.push_back(rgb_color[1]);vertexs.push_back(rgb_color[2]);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point2(0));vertexs.push_back(point2(1));vertexs.push_back(point2(2));
+        vertexs.push_back(rgb_color[0]);vertexs.push_back(rgb_color[1]);vertexs.push_back(rgb_color[2]);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point3(0));vertexs.push_back(point3(1));vertexs.push_back(point3(2));
+        vertexs.push_back(rgb_color[0]);vertexs.push_back(rgb_color[1]);vertexs.push_back(rgb_color[2]);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point4(0));vertexs.push_back(point4(1));vertexs.push_back(point4(2));
+        vertexs.push_back(rgb_color[0]);vertexs.push_back(rgb_color[1]);vertexs.push_back(rgb_color[2]);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point5(0));vertexs.push_back(point5(1));vertexs.push_back(point5(2));
+        vertexs.push_back(rgb_color[0]);vertexs.push_back(rgb_color[1]);vertexs.push_back(rgb_color[2]);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point6(0));vertexs.push_back(point6(1));vertexs.push_back(point6(2));
+        vertexs.push_back(rgb_color[0]);vertexs.push_back(rgb_color[1]);vertexs.push_back(rgb_color[2]);
+//    vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    }
+    else {
+        vertexs.push_back(point1(0));vertexs.push_back(point1(1));vertexs.push_back(point1(2));
+        vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point2(0));vertexs.push_back(point2(1));vertexs.push_back(point2(2));
+        vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point3(0));vertexs.push_back(point3(1));vertexs.push_back(point3(2));
+        vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point4(0));vertexs.push_back(point4(1));vertexs.push_back(point4(2));
+        vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point5(0));vertexs.push_back(point5(1));vertexs.push_back(point5(2));
+        vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+        vertexs.push_back(point6(0));vertexs.push_back(point6(1));vertexs.push_back(point6(2));
+        vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
+    }
+
+
 }
 
 
@@ -984,6 +1093,9 @@ void SurfelMap::publish_all_pointcloud(ros::Time pub_stamp)
 
     PointCloud::Ptr pointcloud(new PointCloud);
     pointcloud->reserve(local_surfels.size() + inactive_pointcloud->size());
+    RgbPointCloud::Ptr rgb_pointcloud(new RgbPointCloud);
+    rgb_pointcloud->reserve(local_surfels.size());// + rgb_inactive_pcd->size());
+
     for(int surfel_it = 0; surfel_it < local_surfels.size(); surfel_it++)
     {
         if(local_surfels[surfel_it].update_times < 5)
@@ -991,12 +1103,39 @@ void SurfelMap::publish_all_pointcloud(ros::Time pub_stamp)
         PointType p;
         p.x = local_surfels[surfel_it].px;
         p.y = local_surfels[surfel_it].py;
-        p.z = local_surfels[surfel_it].pz;
+        p.z = 1;//local_surfels[surfel_it].pz;
         p.intensity = local_surfels[surfel_it].color;
+
         pointcloud->push_back(p);
     }
 
+    for (int i_ = 0;i_<poses_database.size(); i_ ++){
+        for (int j_= 0;j_<poses_database[i_].attached_surfels.size();j_++){
+            RgbPointType rgb_p;
+            SurfelElement surfel_;
+            surfel_ = poses_database[i_].attached_surfels[j_];
+            rgb_p.x = surfel_.px;
+            rgb_p.y = surfel_.py;
+            rgb_p.z = surfel_.pz;
+            rgb_p.normal_x = surfel_.nx;
+            rgb_p.normal_y = surfel_.ny;
+            rgb_p.normal_z = surfel_.nz;
+            uint8_t r =surfel_.rgb_color[0] ,
+                    g = surfel_.rgb_color[1],
+                    b = surfel_.rgb_color[2];
+            uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+            rgb_p.rgb = *reinterpret_cast<float*>(&rgb);
+            rgb_pointcloud->push_back(rgb_p);
+        }
+    }
+    pcl::PassThrough<RgbPointType> passed_rgb_cloud;
+    passed_rgb_cloud.setInputCloud(rgb_pointcloud);
+    passed_rgb_cloud.setFilterFieldName("z");
+    passed_rgb_cloud.setFilterLimits(-0.2,2.2);
+    passed_rgb_cloud.filter(*rgb_pointcloud);
+
     (*pointcloud) += (*inactive_pointcloud);
+//    (*rgb_pointcloud) += (*rgb_inactive_pcd);
 
     end_time = std::chrono::system_clock::now();
     total_time = end_time - start_time;
@@ -1007,6 +1146,7 @@ void SurfelMap::publish_all_pointcloud(ros::Time pub_stamp)
     pcl_conversions::toPCL(pub_stamp, pointcloud->header.stamp);*/
 
     PointCloud::Ptr pointcloud_noceil(new PointCloud);
+//    PointCloud::Ptr rgb_pcd(new RgbPointCloud);
     for(int i = 0; i < pointcloud->points.size(); i++)
     {   
         /*if( pointcloud->points[i].z > 2.2 )
@@ -1016,10 +1156,14 @@ void SurfelMap::publish_all_pointcloud(ros::Time pub_stamp)
 
     pointcloud_noceil->header.frame_id = "world";
     pcl_conversions::toPCL(pub_stamp, pointcloud_noceil->header.stamp);
-    pointcloud_publish.publish(pointcloud_noceil);
+//    pointcloud_publish.publish(pointcloud_noceil);
 
-    //pointcloud_publish.publish(pointcloud);
+    pointcloud->header.frame_id = "world";
+    pointcloud_publish.publish(pointcloud);
     //printf("publish point cloud with %d points, inactive %d points.\n", pointcloud->size(), inactive_pointcloud->size());
+
+    rgb_pointcloud->header.frame_id = "world";
+    rgb_pointcloud_publish.publish(rgb_pointcloud);
 
     // end_time = std::chrono::system_clock::now();
     // total_time = end_time - start_time;
@@ -1034,7 +1178,6 @@ void SurfelMap::move_all_surfels()
 
     if(poses_to_remove.size() > 0)
     {
-        
         start_time = std::chrono::system_clock::now();
         int added_surfel_num = 0;
         float sum_update_times = 0.0;
@@ -1056,6 +1199,16 @@ void SurfelMap::move_all_surfels()
                     p.z = local_surfels[i].pz;
                     p.intensity = local_surfels[i].color;
                     inactive_pointcloud->push_back(p);
+
+                    RgbPointType rgb_p;
+                    rgb_p.x = local_surfels[i].px;
+                    rgb_p.y = local_surfels[i].py;
+                    rgb_p.z = local_surfels[i].pz;
+                    rgb_p.normal_x = local_surfels[i].nx;
+                    rgb_p.normal_y = local_surfels[i].ny;
+                    rgb_p.normal_z = local_surfels[i].nz;
+                    rgb_p.rgb = 100;
+                    rgb_inactive_pcd->push_back(rgb_p);
 
                     added_surfel_num += 1;
                     sum_update_times += local_surfels[i].update_times;
@@ -1109,6 +1262,16 @@ void SurfelMap::move_add_surfels(int reference_index)
                     p.z = local_surfels[i].pz;
                     p.intensity = local_surfels[i].color;
                     inactive_pointcloud->push_back(p);
+
+                    RgbPointType rgb_p;
+                    rgb_p.x = local_surfels[i].px;
+                    rgb_p.y = local_surfels[i].py;
+                    rgb_p.z = local_surfels[i].pz;
+                    rgb_p.normal_x = local_surfels[i].nx;
+                    rgb_p.normal_y = local_surfels[i].ny;
+                    rgb_p.normal_z = local_surfels[i].nz;
+                    rgb_p.rgb = 100;
+                    rgb_inactive_pcd->push_back(rgb_p);
 
                     added_surfel_num += 1;
                     sum_update_times += local_surfels[i].update_times;
@@ -1176,6 +1339,7 @@ void SurfelMap::move_add_surfels(int reference_index)
             begin_ptr = inactive_pointcloud->begin() + poses_database[remove_begin_index].points_begin_index;
             end_ptr = begin_ptr + remove_points_size;
             inactive_pointcloud->erase(begin_ptr, end_ptr);
+
             
             for(int pi = poses_database[remove_end_index].points_pose_index + 1; pi < pointcloud_pose_index.size(); pi++)
             {

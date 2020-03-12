@@ -16,25 +16,35 @@ typedef message_filters::sync_policies::ExactTime<sensor_msgs::PointCloud, nav_m
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "surfel_fusion");
-  ros::NodeHandle nh("~");
+    ros::init(argc, argv, "surfel_fusion");
+    ros::NodeHandle nh("~");
 
-  SurfelMap surfel_map(nh);
+    SurfelMap surfel_map(nh);
 
-  ros::Subscriber sub_image = nh.subscribe("image", 1, &SurfelMap::image_input, &surfel_map);
-  ros::Subscriber sub_depth = nh.subscribe("depth", 1, &SurfelMap::depth_input, &surfel_map);
-  ros::Subscriber sub_save_map = nh.subscribe("save_map", 1, &SurfelMap::save_map, &surfel_map);
-  ros::Subscriber sub_path = nh.subscribe("loop_path", 1, &SurfelMap::path_input, &surfel_map);
-  ros::Subscriber sub_extrinsic_pose = nh.subscribe("extrinsic_pose", 1, &SurfelMap::extrinsic_input, &surfel_map);
-  
+    string save_name;
+    if(nh.getParam("save_name", save_name))
+    {
+        surfel_map.set_map_dir(save_name);
+    }
+
+    ros::Subscriber sub_image = nh.subscribe("image", 1, &SurfelMap::image_input, &surfel_map);
+    ros::Subscriber sub_depth = nh.subscribe("depth", 1, &SurfelMap::depth_input, &surfel_map);
+    ros::Subscriber sub_color = nh.subscribe("color", 1, &SurfelMap::color_input, &surfel_map);
+    ros::Subscriber sub_save_map = nh.subscribe("save_map", 1, &SurfelMap::save_map, &surfel_map);
+    ros::Subscriber sub_path = nh.subscribe("loop_path", 1, &SurfelMap::path_input, &surfel_map);
+    ros::Subscriber sub_extrinsic_pose = nh.subscribe("extrinsic_pose", 1, &SurfelMap::extrinsic_input, &surfel_map);
+    ros::Subscriber sub_cmd = nh.subscribe("/surfel_cmd",1, &SurfelMap::surfel_cmd_callback, &surfel_map);
+
 //  cout<<"save_name: = "<<save_name<<endl;
-  ros::Rate r(100);
-  while(ros::ok())
-  {
-    ros::spinOnce();
-    r.sleep();
-    surfel_map.publish_all_pointcloud(ros::Time::now());
-  }
+    ros::Rate r(100);
+    while(ros::ok())
+    {
+        ros::spinOnce();
+        r.sleep();
+        surfel_map.publish_all_pointcloud(ros::Time::now());
+    }
 
-  return EXIT_SUCCESS;
+
+
+    return EXIT_SUCCESS;
 }

@@ -31,6 +31,7 @@ void FusionFunctions::fuse_initialize_map(
     int reference_frame_index,
     cv::Mat &input_image,
     cv::Mat &input_depth,
+    cv::Mat &debug_img,
     Eigen::Matrix4f &pose,
     std::vector<SurfelElement> &local_surfels,
     std::vector<SurfelElement> &new_surfels)
@@ -38,12 +39,19 @@ void FusionFunctions::fuse_initialize_map(
     std::chrono::time_point<std::chrono::system_clock> start_time, end_time;
     std::chrono::duration<double> total_time;
     start_time = std::chrono::system_clock::now();
+    frame_index_ = reference_frame_index;
 
-    // image = input_image.clone();
+    // grey_image = input_image.clone();
     // depth = input_depth.clone();
 
-    image = input_image;
+    raw_image = input_image;
+    if(input_image.type() == 0) {
+        grey_image = input_image;
+    } else if(input_image.type() == 16)
+        cv::cvtColor(input_image,grey_image,CV_BGR2GRAY);
+
     depth = input_depth;
+//    color = input_color;
 
     local_surfels_ptr = &local_surfels;
     new_surfels_ptr = &new_surfels;
@@ -81,6 +89,8 @@ void FusionFunctions::fuse_initialize_map(
     end_time = std::chrono::system_clock::now();
     total_time = end_time - start_time;
   //  printf("FusionFunctions::initialize superpixels cost %f ms.\n", total_time.count() * 1000.0);
+
+    debug_img = debug_image;
 }
 
 void FusionFunctions::project(float &x, float &y, float &z, float &u, float &v)
@@ -303,6 +313,7 @@ void FusionFunctions::fuse_surfels_kernel(
         local_surfels[i].nz = new_norm_w(2);
         local_surfels[i].weight = sum_weight;
         local_surfels[i].color = superpixel_seeds[sp_index].mean_intensity;
+        local_surfels[i].rgb_color = superpixel_seeds[sp_index].rgb_color;
         float new_size = superpixel_seeds[sp_index].size * fabs(superpixel_seeds[sp_index].mean_depth / (camera_f * superpixel_seeds[sp_index].view_cos));
         if (new_size < local_surfels[i].size)
             local_surfels[i].size = new_size;
@@ -358,6 +369,9 @@ void FusionFunctions::initialize_surfels(
         new_ele.weight = get_weight(superpixel_seeds[i].mean_depth);
         new_ele.update_times = 1;
         new_ele.last_update = reference_frame_index;
+//        if(raw_image.channels() == 3){
+        new_ele.rgb_color = superpixel_seeds[i].rgb_color;
+
         new_surfels.push_back(new_ele);
     }
 }
@@ -401,7 +415,7 @@ void FusionFunctions::update_pixels_kernel(
     {
         if(superpixel_seeds[superpixel_index[row_i * image_width + col_i]].stable)
             continue;
-        float my_intensity = image.at<uchar>(row_i, col_i);
+        float my_intensity = grey_image.at<uchar>(row_i, col_i);
         float my_inv_depth = 0.0;
         if (depth.at<float>(row_i, col_i) > 0.01)
             my_inv_depth = 1.0 / depth.at<float>(row_i, col_i);
@@ -504,7 +518,7 @@ void FusionFunctions::update_pixels()
 //                 sum_x += check_i;
 //                 sum_y += check_j;
 //                 sum_intensity_num += 1.0;
-//                 sum_intensity += image.at<uchar>(check_j, check_i);
+//                 sum_intensity += grey_image.at<uchar>(check_j, check_i);
 //                 if (depth.at<float>(check_j, check_i) > 0.1)
 //                 {
 //                     sum_depth += depth.at<float>(check_j, check_i);
@@ -576,7 +590,7 @@ void FusionFunctions::update_seeds_kernel(
                 sum_x += check_i;
                 sum_y += check_j;
                 sum_intensity_num += 1.0;
-                sum_intensity += image.at<uchar>(check_j, check_i);
+                sum_intensity += grey_image.at<uchar>(check_j, check_i);
                 float check_depth = depth.at<float>(check_j, check_i);
                 if (check_depth > 0.1)
                 {
@@ -663,10 +677,11 @@ void FusionFunctions::initialize_seeds_kernel(
         Superpixel_seed this_sp;
         this_sp.x = image_x;
         this_sp.y = image_y;
-        this_sp.mean_intensity = image.at<uchar>(image_y, image_x);
+        this_sp.mean_intensity = grey_image.at<uchar>(image_y, image_x);
         this_sp.fused = false;
         this_sp.stable = false;
         this_sp.mean_depth = depth.at<float>(image_y, image_x);
+//        this_sp.rgb_color = cv::Vec3b(0,0,0);
         if(this_sp.mean_depth < 0.01)
         {
             int check_x_begin = sp_x * SP_SIZE + SP_SIZE / 2 - SP_SIZE;
@@ -1134,6 +1149,8 @@ void FusionFunctions::calculate_sp_depth_norms_kernel(int thread_i, int thread_n
     int end_index = begin_index + step;
     if (thread_i == thread_num - 1)
         end_index = superpixel_seeds.size();
+
+//    printf("begin: %d, end: %d, step: %d, thread_num:%d \n", begin_index,end_index,step,thread_num);
     for (int seed_i = begin_index; seed_i < end_index; seed_i++)
     {
         int sp_x = seed_i % sp_width;
@@ -1180,6 +1197,7 @@ void FusionFunctions::calculate_sp_depth_norms_kernel(int thread_i, int thread_n
             continue;
         float mean_depth = superpixel_seeds[seed_i].mean_depth;
         float norm_x, norm_y, norm_z, norm_b;
+        cv::Vec3b color_;
         norm_x = norm_y = norm_z = norm_b = 0.0;
         float inlier_num = 0;
         for (int p_i = 0; p_i < pixel_depth.size(); p_i++)
@@ -1248,7 +1266,19 @@ void FusionFunctions::calculate_sp_depth_norms_kernel(int thread_i, int thread_n
         superpixel_seeds[seed_i].mean_depth = mean_depth;
         superpixel_seeds[seed_i].view_cos = view_cos;
         superpixel_seeds[seed_i].size = std::sqrt(max_dist);
+        color_= raw_image.at<cv::Vec3b>((int)superpixel_seeds[seed_i].y,(int)superpixel_seeds[seed_i].x);
+//        printf(" ux: %d, uy: %d \n", (int)superpixel_seeds[seed_i].x,(int)superpixel_seeds[seed_i].y);
+
+        if(color_.channels ==3){    //rgb color
+            superpixel_seeds[seed_i].rgb_color = color_;
+//            printf("seed_i: %d, r: %d, g: %d, b:%d \n", seed_i, color_[0],color_[1],color_[2]);
+        }
+        else
+            superpixel_seeds[seed_i].rgb_color = cv::Vec3b(fabs(norm_x * 255),fabs(norm_y *255), fabs(norm_z * 255));
+
+
     }
+
 }
 
 // void FusionFunctions::calculate_sp_depth_norms_kernel(int thread_i, int thread_num)
@@ -1571,30 +1601,66 @@ void FusionFunctions::generate_super_pixels()
 void FusionFunctions::debug_show()
 {
     cv::Mat result = cv::Mat(image_height, image_width, CV_8UC3);
+    cv::Mat final_img;
+
     for (int j = 0; j < image_height; j++)
         for (int i = 0; i < image_width; i++)
         {
             // pixel sp index
             int sp_index = superpixel_index[j * image_width + i];
             cv::Vec3b this_norm;
+            cv::Vec3b this_color;
             this_norm[0] = fabs(superpixel_seeds[sp_index].norm_x) * 255;
             this_norm[1] = fabs(superpixel_seeds[sp_index].norm_y) * 255;
             this_norm[2] = fabs(superpixel_seeds[sp_index].norm_z) * 255;
-            result.at<cv::Vec3b>(j, i) = this_norm;
+            this_color = superpixel_seeds[sp_index].rgb_color;
+
+            if(raw_image.channels() ==3){
+                result.at<cv::Vec3b>(j, i) = cv::Vec3b(this_color[2],this_color[1],this_color[0]);
+            } else
+                result.at<cv::Vec3b>(j, i) = this_norm;
+//            printf("index: %d \n",sp_index);
+//            printf("index:%d, norm_x: %d, norm_y: %d, norm_z:%d, r:%d, g: %d, b:%d \n",
+//                    sp_index, this_norm[0], this_norm[1], this_norm[2], this_color[0], this_color[1], this_color[2]);
+//            printf("index: %d, r: %d, g:%d, b: %d \n",sp_index,this_color[0],this_color[1],this_color[2]);
+//            if(this_color[0]!=0 && this_color[1]!=0){
+//                result.at<cv::Vec3b>(i,j) = this_color;
+//            }
         }
     for (int i = 0; i < superpixel_index.size(); i++)
     {
         int p_x = i % image_width;
         int p_y = i / image_width;
         int my_index = superpixel_index[i];
-        if (p_x + 1 < image_width && superpixel_index[i + 1] != my_index)
+        if (p_x + 1 < image_width && superpixel_index[i + 1] != my_index){
             result.at<cv::Vec3b>(p_y, p_x) = cv::Vec3b(0, 0, 0);
-        if (p_y + 1 < image_height && superpixel_index[i + image_width] != my_index)
+//            printf("px: %d, py: %d \n", p_x, p_y);
+
+        }
+        if (p_y + 1 < image_height && superpixel_index[i + image_width] != my_index){
             result.at<cv::Vec3b>(p_y, p_x) = cv::Vec3b(0, 0, 0);
+//            printf("px0: %d, py0: %d \n", p_x, p_y);
+        }
     }
-    cv::imshow("superpixel norm", result);
+
+    if(raw_image.channels() == 3 ){
+        cv::cvtColor(raw_image,raw_image,cv::COLOR_BGR2RGB);
+        cv::Mat matArray[] = {raw_image,result};
+        cv::hconcat(matArray,2,debug_image);
+    }
+    else{
+//        cv::Mat matArray[] = {grey_image,result};
+//        cv::hconcat(matArray,2,debug_image);
+        debug_image = result;
+    }
+
+
+    std::string pic_full_dir  = "/home/lch/Pictures/" + std::string(std::to_string(frame_index_))
+            + std::string(".png") ;
+//    cv::imwrite(pic_full_dir,debug_image);
+//    cv::imshow("superpixel norm", debug_image);
     // cv::imwrite("/home/wang/average_norm.png", result);
     // cv::imwrite("/home/wang/huber_norm.png", result);
-    // cv::imshow("input image", image);
+    // cv::imshow("input grey_image", grey_image);
     cv::waitKey(5);
 }

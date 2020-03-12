@@ -10,6 +10,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <pcl_ros/point_cloud.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/point_types.h>
 
 #include <boost/shared_ptr.hpp>
 
@@ -25,6 +27,8 @@
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <visualization_msgs/Marker.h>
+#include <std_srvs/SetBool.h>
+#include <std_msgs/Int16.h>
 
 #include <elements.h>
 #include <fusion_functions.h>
@@ -32,7 +36,9 @@
 // #include <opengl_render/render_tool.h>
 
 typedef pcl::PointXYZI PointType;
+typedef pcl::PointXYZRGBNormal RgbPointType;
 typedef pcl::PointCloud<PointType> PointCloud;
+typedef pcl::PointCloud<RgbPointType> RgbPointCloud;
 
 using namespace std;
 
@@ -56,8 +62,10 @@ public:
 
     void image_input(const sensor_msgs::ImageConstPtr &image_input);
     void depth_input(const sensor_msgs::ImageConstPtr &image_input);
+    void color_input(const sensor_msgs::ImageConstPtr &image_input);
     void path_input(const nav_msgs::PathConstPtr &loop_path_input);
     void extrinsic_input(const nav_msgs::OdometryConstPtr &ex_input);
+    void surfel_cmd_callback(const std_msgs::Int16ConstPtr &cmd);
     void orb_results_input(
         const sensor_msgs::PointCloudConstPtr &loop_stamp_input,
         const nav_msgs::PathConstPtr &loop_path_input,
@@ -67,15 +75,21 @@ public:
     void save_map(const std_msgs::StringConstPtr &save_map_input);
     void publish_all_pointcloud(ros::Time pub_stamp);
 
+    bool surfel_state;
+    void set_map_dir(string str);
+
     // void loop_path_input(const nav_msgs::PathConstPtr &loop_path_input);
     // void loop_stamp_input(const sensor_msgs::PointcloudConstPtr &loop_stamp_input);
     // void this_pose_input(const nav_msgs::OdometryConstPtr &this_pose_input);
 
   private:
     void synchronize_msgs();
+    // void initialize_map(cv::Mat grey_image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
+    // void fuse_map(cv::Mat grey_image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
+    void fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_input, int reference_index);
     // void initialize_map(cv::Mat image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
     // void fuse_map(cv::Mat image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
-    void fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_input, int reference_index);
+
     void move_add_surfels(int reference_index);
     void move_all_surfels();
     bool synchronize_buffer();
@@ -97,9 +111,13 @@ public:
     // for surfel save into mesh
     void push_a_surfel(vector<float> &vertexs, SurfelElement &this_surfel);
 
+    // image
+    cv::Mat debug_image;
+
     // receive buffer
     std::deque<std::pair<ros::Time, cv::Mat>> image_buffer;
     std::deque<std::pair<ros::Time, cv::Mat>> depth_buffer;
+    std::deque<std::pair<ros::Time, cv::Mat>> color_buffer;
     std::deque<std::pair<ros::Time, int>> pose_reference_buffer;
 
     // geometry_msgs::PoseStamped await_pose;
@@ -112,7 +130,7 @@ public:
     int cam_width;
     int cam_height;
     float cam_fx, cam_fy, cam_cx, cam_cy;
-    Eigen::Matrix4d extrinsic_matrix;
+    Eigen::Matrix4d extrinsic_matrix, T_d2c;
     bool extrinsic_matrix_initialized;
 
     Eigen::Matrix3d camera_matrix;
@@ -145,16 +163,22 @@ public:
 
     // for fast publish
     PointCloud::Ptr inactive_pointcloud;
+    RgbPointCloud::Ptr rgb_inactive_pcd;
     std::vector<int> pointcloud_pose_index;
 
     // ros related
     ros::NodeHandle &nh;
     ros::Publisher pointcloud_publish;
     ros::Publisher raw_pointcloud_publish;
+    ros::Publisher rgb_pointcloud_publish;
     ros::Publisher loop_path_publish;
     ros::Publisher driftfree_path_publish;
     ros::Publisher loop_marker_publish;
     ros::Publisher cam_pose_publish;
+    ros::Publisher sp_img_publish;
+
+    // save map
+    string map_dir;
 
     // for gaofei experiment
     bool is_first_path;

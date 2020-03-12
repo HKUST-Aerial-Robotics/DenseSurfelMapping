@@ -13,6 +13,7 @@ struct Superpixel_seed
     float mean_intensity;
     bool fused;
     bool stable;
+    cv::Vec3b rgb_color;
 
     // for debug
     float min_eigen_value;
@@ -28,4 +29,5 @@ struct SurfelElement
     float weight;
     int update_times;
     int last_update;
+    cv::Vec3b rgb_color;
 };

@@ -5,7 +5,7 @@
     <param name="cam_width" value="320" />
     <param name="cam_height" value="256" />
 
-    <!--input image info-->
+    <!--input grey_image info-->
     <param name="cam_fx" value="223.19148254" />
     <param name="cam_cx" value="159.8085022" />
     <param name="cam_fy" value="279.78665161" />
@@ -19,7 +19,7 @@
     <param name="drift_free_poses" value="300" />
 
     <!-- for data save -->
-    <remap from="~image" to="/depthnet_node/reference_image" />
+    <remap from="~grey_image" to="/depthnet_node/reference_image" />
     <remap from="~depth" to="/depthnet_node/depth" />
    <remap from="~loop_path" to="/pose_graph/pose_graph_path" />
    <remap from="~extrinsic_pose" to="/vins_estimator/extrinsic" />
