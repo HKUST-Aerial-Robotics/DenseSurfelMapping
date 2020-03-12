@@ -34,6 +34,7 @@ private:
     cv::Mat raw_image;
     cv::Mat grey_image;
     cv::Mat depth;
+    cv::Mat color;
 
     cv::Mat debug_image;
     int frame_index_;

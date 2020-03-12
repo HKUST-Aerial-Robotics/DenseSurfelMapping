@@ -89,7 +89,6 @@ rgb_inactive_pcd (new RgbPointCloud)
     T_d2c(1,3) = 8.836767665343359e-05;
     T_d2c(2,3) = 0.00035375202423892915;
 
-
 }
 
 SurfelMap::~SurfelMap()
@@ -144,6 +143,21 @@ void SurfelMap::image_input(const sensor_msgs::ImageConstPtr &image_input)
 
 }
 
+void SurfelMap::color_input(const sensor_msgs::ImageConstPtr &image_input)
+{
+    if(surfel_state){
+
+//        printf("receive color!\n");
+        cv_bridge::CvImagePtr image_ptr = cv_bridge::toCvCopy(image_input, sensor_msgs::image_encodings::TYPE_8UC3);
+        cv::Mat image = image_ptr->image;
+        ros::Time stamp = image_ptr->header.stamp;
+        color_buffer.push_back(std::make_pair(stamp, image));
+        synchronize_msgs();
+
+    }
+
+}
+
 int cnt = 0;
 void SurfelMap::depth_input(const sensor_msgs::ImageConstPtr &depth_input)
 {
@@ -183,6 +197,7 @@ void SurfelMap::synchronize_msgs()
         double pose_reference_time = fuse_stamp.toSec();
         int image_num = -1;
         int depth_num = -1;
+
         for(int image_i = 0; image_i < image_buffer.size(); image_i++)
         {
             double image_time = image_buffer[image_i].first.toSec();
@@ -218,10 +233,12 @@ void SurfelMap::synchronize_msgs()
         // /rintf("fuse map begins!\n");
 
         //std::cout<<"image_num:"<<image_num<<"\nima"
-        cv::Mat image, depth;
+        cv::Mat image, depth, color;
         image = image_buffer[image_num].second;
         depth = depth_buffer[depth_num].second;
         /*grey_image = image_buffer.front().second;
+        color = color_buffer[image_num].second;
+        /*image = image_buffer.front().second;
         depth = depth_buffer.front().second;*/
         fuse_map(image, depth, fuse_pose_eigen.cast<float>(), relative_index);
         //printf("fuse map done!\n");
@@ -898,6 +915,7 @@ void SurfelMap::push_a_surfel(vector<float> &vertexs, SurfelElement &this_surfel
         vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);vertexs.push_back(surfel_color);
     }
 
+
 }
 
 
@@ -1087,6 +1105,7 @@ void SurfelMap::publish_all_pointcloud(ros::Time pub_stamp)
         p.y = local_surfels[surfel_it].py;
         p.z = 1;//local_surfels[surfel_it].pz;
         p.intensity = local_surfels[surfel_it].color;
+
         pointcloud->push_back(p);
     }
 

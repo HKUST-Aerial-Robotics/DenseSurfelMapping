@@ -29,6 +29,7 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_image = nh.subscribe("image", 1, &SurfelMap::image_input, &surfel_map);
     ros::Subscriber sub_depth = nh.subscribe("depth", 1, &SurfelMap::depth_input, &surfel_map);
+    ros::Subscriber sub_color = nh.subscribe("color", 1, &SurfelMap::color_input, &surfel_map);
     ros::Subscriber sub_save_map = nh.subscribe("save_map", 1, &SurfelMap::save_map, &surfel_map);
     ros::Subscriber sub_path = nh.subscribe("loop_path", 1, &SurfelMap::path_input, &surfel_map);
     ros::Subscriber sub_extrinsic_pose = nh.subscribe("extrinsic_pose", 1, &SurfelMap::extrinsic_input, &surfel_map);

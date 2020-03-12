@@ -51,6 +51,7 @@ void FusionFunctions::fuse_initialize_map(
         cv::cvtColor(input_image,grey_image,CV_BGR2GRAY);
 
     depth = input_depth;
+//    color = input_color;
 
     local_surfels_ptr = &local_surfels;
     new_surfels_ptr = &new_surfels;
