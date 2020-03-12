@@ -34,30 +34,34 @@ alt="video" width="432" height="316" border="10" /></a>
 
 ## Running with VINS-Mono
 
-We have use the surfel fusion with VINS-Mono in lots of UAV projects. For depth estimation, we recommend high quality depth methods/devices, for example [MVDepthNet](https://github.com/HKUST-Aerial-Robotics/MVDepthNet) or intel-realsense. Please refer to ```/launch/fuse_depthnet.launch``` for detailed parameters. The system takes paired image and depth map as input. Since VINS-Mono publishes imu poses, we also need to receive ```/vins_estimator/extrinsic``` for converting imu poses into camera poses.
+We have use the surfel fusion with VINS-Mono in lots of UAV projects. For depth estimation, we recommend high quality depth methods/devices, for example [MVDepthNet](https://github.com/HKUST-Aerial-Robotics/MVDepthNet) or intel-realsense. Please refer to ```/launch/fuse_depthnet.launch``` for detailed parameters. The system takes paired grey_image and depth map as input. Since VINS-Mono publishes imu poses, we also need to receive ```/vins_estimator/extrinsic``` for converting imu poses into camera poses.
 
-## Running with VINS-Fusion Dataset
-![Run with VINs_Fusion](fig/rviz_tools.png)
+## Generate Colored Map
+<p align="center">
+<img src="fig/colored_map.png" alt="mapping example">
+</p>
 
-**Step1: Download and launch rviz visual tools**
+We have use Intel Realsense with VINS-Fusion to generate a colored mesh map. Colored image and depth image(aligned to color image) are used to reconstruct the environment, while VINS-Fusion used stereo gray image to calculate VIO.
 
-Clone the tools [ground_station_msgs](git@github.com:glennliu/ground_station_msgs.git) and [rviz_visual_tools](https://github.com/glennliu/rviz_visual_tools) into your catkin workspace. Compile them by `catkin_make`. 
-This is a configured rviz panel that visualize most of data you needed.
+**Step1: Download and run dataset**
 
-**Step2: Run VINS-Fusion bag**
-
-Download VINS-Fusion rosbag we provided [here](https://hkustconnect-my.sharepoint.com/:u:/g/personal/cliuci_connect_ust_hk/ETBxe2X_a4JPshZn1n56drMB6x8kWaoWE_IOA_IBZ428mg?e=CivoB5) and run the bag,
+Download rosbag we provided [here](https://hkustconnect-my.sharepoint.com/:u:/g/personal/cliuci_connect_ust_hk/Ef-CaCA7ZZ1Lu9EHB84f314B631jJnot31kDbREENSns4Q?e=TFqdWs) and run the bag,
 ```js
-rosbag play surfel_lab.bag
+rosbag play surfel_color02.bag
 ```
-If you have [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion) configured correct, you can also directly run it with VINS-Fusion.
+We have solved VIO from VINS. For detailed configuration about VINS, please refer to [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion).
 
-**Step3: Launch Surfel Fusion**
+**Step2: Launch Surfel Fusion**
 ```js
 roslaunch surfel_fusion vins_realsense.launch
 ```
-On the Rviz panel, click the ``HandleHold`` button on the left corner. Then click `Start`.
-When you finish, click `Finish` button.
+
+**Step 3: Save Map**
+
+Send command to stop surfel and save map in .ply and .pcd
+````js
+rostopic pub /surfel_cmd std_msgs/Int16 "data: 2"  
+````
 
 ## Ackonwledgement
 We thank Gao Fei, Pan Jie, and Wang Luqi, for their contribution to the code and suggestions.

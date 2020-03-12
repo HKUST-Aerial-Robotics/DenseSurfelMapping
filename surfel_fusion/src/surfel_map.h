@@ -10,6 +10,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <pcl_ros/point_cloud.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/point_types.h>
 
 #include <boost/shared_ptr.hpp>
 
@@ -34,7 +36,9 @@
 // #include <opengl_render/render_tool.h>
 
 typedef pcl::PointXYZI PointType;
+typedef pcl::PointXYZRGBNormal RgbPointType;
 typedef pcl::PointCloud<PointType> PointCloud;
+typedef pcl::PointCloud<RgbPointType> RgbPointCloud;
 
 using namespace std;
 
@@ -79,8 +83,8 @@ public:
 
   private:
     void synchronize_msgs();
-    // void initialize_map(cv::Mat image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
-    // void fuse_map(cv::Mat image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
+    // void initialize_map(cv::Mat grey_image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
+    // void fuse_map(cv::Mat grey_image, cv::Mat depth, geometry_msgs::Pose pose, ros::Time stamp);
     void fuse_map(cv::Mat image, cv::Mat depth, Eigen::Matrix4f pose_input, int reference_index);
     void move_add_surfels(int reference_index);
     void move_all_surfels();
@@ -103,6 +107,9 @@ public:
     // for surfel save into mesh
     void push_a_surfel(vector<float> &vertexs, SurfelElement &this_surfel);
 
+    // image
+    cv::Mat debug_image;
+
     // receive buffer
     std::deque<std::pair<ros::Time, cv::Mat>> image_buffer;
     std::deque<std::pair<ros::Time, cv::Mat>> depth_buffer;
@@ -118,7 +125,7 @@ public:
     int cam_width;
     int cam_height;
     float cam_fx, cam_fy, cam_cx, cam_cy;
-    Eigen::Matrix4d extrinsic_matrix;
+    Eigen::Matrix4d extrinsic_matrix, T_d2c;
     bool extrinsic_matrix_initialized;
 
     Eigen::Matrix3d camera_matrix;
@@ -151,16 +158,19 @@ public:
 
     // for fast publish
     PointCloud::Ptr inactive_pointcloud;
+    RgbPointCloud::Ptr rgb_inactive_pcd;
     std::vector<int> pointcloud_pose_index;
 
     // ros related
     ros::NodeHandle &nh;
     ros::Publisher pointcloud_publish;
     ros::Publisher raw_pointcloud_publish;
+    ros::Publisher rgb_pointcloud_publish;
     ros::Publisher loop_path_publish;
     ros::Publisher driftfree_path_publish;
     ros::Publisher loop_marker_publish;
     ros::Publisher cam_pose_publish;
+    ros::Publisher sp_img_publish;
 
     // save map
     string map_dir;

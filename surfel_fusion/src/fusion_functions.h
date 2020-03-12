@@ -1,6 +1,7 @@
 #pragma once
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <elements.h>
 
@@ -18,7 +19,8 @@
 // for RGBD
 #define HUBER_RANGE 0.075
 #define BASELINE 0.1
-#define DISPARITY_ERROR 1.0
+ #define DISPARITY_ERROR 2.0
+//#define DISPARITY_ERROR 0.1
 #define MIN_TOLERATE_DIFF 0.1
 
 class FusionFunctions
@@ -29,8 +31,12 @@ private:
     int sp_width, sp_height;
     float fuse_far, fuse_near;
 
-    cv::Mat image;
+    cv::Mat raw_image;
+    cv::Mat grey_image;
     cv::Mat depth;
+
+    cv::Mat debug_image;
+    int frame_index_;
 
     std::vector<double> space_map;
     std::vector<float> norm_map;
@@ -90,6 +96,7 @@ public:
         int reference_frame_index,
         cv::Mat &input_image,
         cv::Mat &input_depth,
+        cv::Mat &output_image4debug,
         Eigen::Matrix4f &pose,
         std::vector<SurfelElement> &local_surfels,
         std::vector<SurfelElement> &new_surfels);
